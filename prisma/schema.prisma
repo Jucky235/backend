@@ -1,0 +1,76 @@
+datasource db {
+  provider  = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- ENUMS ---
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum ExamCategory {
+  TOEIC
+}
+
+enum ExamStatus {
+  ACTIVE
+  INACTIVE
+  OUTDATED
+}
+
+enum QuestionStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// --- MODELS ---
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  password      String       // Note: Make this optional if Google users don't have passwords
+  name          String
+  phoneNumber   String?      // Made optional for flexible signup
+  gender        Gender?      // Made optional
+  provider      AuthProvider @default(EMAIL)
+  refreshTokens String[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Exam {
+  id        String       @id @default(uuid())
+  name      String
+  category ExamCategory 
+  time      Int          // Time limit in minutes or seconds
+  status    ExamStatus   @default(ACTIVE)
+  questions Question[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Question {
+  id            String         @id @default(uuid())
+  content       String         @db.Text
+  options       Json          
+  category      ExamCategory
+  explanation   String?        @db.Text
+  status        QuestionStatus @default(ACTIVE)
+  topicNumber   Int?           
+  exams         Exam[]         
+  lastEditedById String?
+  lastEditedBy Json? 
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}

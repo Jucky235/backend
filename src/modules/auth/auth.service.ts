@@ -17,7 +17,6 @@ export class AuthService {
         email: data.email,
         password: hashedPassword,
         name: data.name,
-        phoneNumber: data.phoneNumber,
         provider: AuthProvider.EMAIL,
       },
     });

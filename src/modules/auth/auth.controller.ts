@@ -8,18 +8,26 @@ export class AuthController {
     try {
       const user = await authService.registerUser(req.body);
       const { password, ...userWithoutPassword } = user;
-      res.status(201).json(userWithoutPassword);
+
+      return res.status(201).json(userWithoutPassword);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      // 🌟 Check if the error message is our duplicate email trigger
+      if (error.message === "Email already registered.") {
+        return res.status(409).json({ message: error.message }); // 409 Conflict
+      }
+
+      // General validation or bad requests
+      return res.status(400).json({ message: error.message });
     }
   }
 
   async login(req: Request, res: Response) {
     try {
       const result = await authService.loginUser(req.body);
-      res.json(result);
+      return res.json(result);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      // Standardize your login errors to return a "message" key
+      return res.status(400).json({ message: error.message });
     }
   }
 }

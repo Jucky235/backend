@@ -1,11 +1,16 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
+// Payload lưu trong JWT nên chứa thêm roleId
+export interface JwtPayload {
+  id: string;
+  email: string;
+  roleId: string;
+}
+
+// Mở rộng Request của Express
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-  };
+  user?: JwtPayload;
 }
 
 export const authenticateJWT = (
@@ -20,15 +25,26 @@ export const authenticateJWT = (
   }
 
   const token = authHeader.split(" ")[1];
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!jwtSecret) {
+    console.error(
+      "❌ CRITICAL ERROR: JWT_SECRET is not defined in environment variables.",
+    );
+    return res
+      .status(500)
+      .json({ error: "Internal server configuration error." });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
-      id: string;
-      email: string;
-    };
+    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+
+    // Gán thông tin decoded (bao gồm id, email, roleId) vào req.user
     req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(403).json({ error: "Invalid or expired token." });
+
+    return next();
+  } catch (error: any) {
+    // Trả về 401 Unauthorized nếu token hết hạn hoặc invalid
+    return res.status(401).json({ error: "Invalid or expired token." });
   }
 };

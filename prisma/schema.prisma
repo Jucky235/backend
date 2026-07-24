@@ -10,6 +10,13 @@ generator client {
 // --- ENUMS ---
 // ==========================================
 
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -36,65 +43,243 @@ enum QuestionStatus {
   INACTIVE
 }
 
+enum DeckStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DeckVisibility {
+  PRIVATE // Only accessible/visible to the user who created it
+  PUBLIC // Openly discoverable/studiable by all platform members
+}
+
+enum BoxLevel {
+  BOX_1 // Review every day
+  BOX_2 // Review every 2 days
+  BOX_3 // Review every 4 days
+  BOX_4 // Review every 7 days
+  BOX_5 // Review every 15 days
+  BOX_6 // Review every 30 days
+  BOX_7 // Fully mastered / retired
+}
+
+enum PermissionScope {
+  SYSTEM_WISE
+  USER_WISE
+}
+
 // ==========================================
 // --- MODELS ---
 // ==========================================
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  password      String         
+  id            String        @id @default(uuid())
+  email         String        @unique
+  password      String? // Optional to support Google OAuth without empty string hacks
   name          String
-  phoneNumber   String?       
-  gender        Gender?        
-  provider      AuthProvider   @default(EMAIL)
+  phoneNumber   String?
+  gender        Gender?
+  provider      AuthProvider  @default(EMAIL)
   refreshTokens String[]
-  examHistories ExamHistory[]  
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  examHistories ExamHistory[]
+
+  // Flashcard System Creator Mapping
+  createdDecks Deck[]      @relation("DeckCreator")
+  createdCards Flashcard[] @relation("FlashcardCreator")
+
+  // Flashcard Progress Tracker Maps
+  flashcardProgressions FlashcardProgress[]
+  deckProgressions      UserDeckProgress[]
+
+  // Role relation (ĐÃ ĐƯỢC SỬA)
+  roleId Int?
+  role   Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Exam {
-  id            String         @id @default(uuid())
-  name          String
-  category      ExamCategory 
-  time          Int            
-  status        ExamStatus     @default(ACTIVE)
-  questions     Question[]     
-  histories     ExamHistory[]  
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id        String         @id @default(uuid())
+  name      String
+  category  ExamCategory
+  time      Int // Duration in minutes or seconds
+  status    ExamStatus     @default(ACTIVE)
+  questions ExamQuestion[] // Explicit link to the join table
+  histories ExamHistory[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 model Question {
   id             String         @id @default(uuid())
   content        String         @db.Text
-  options        Json          
+  options        Json // Structured JSON for answer choices
   right_answer   String
   category       ExamCategory
   explanation    String?        @db.Text
   status         QuestionStatus @default(ACTIVE)
-  topicNumber    Int?           
-  exams          Exam[]         
+  topicNumber    Int?
+  imagePath      String?
+  audioPath      String?
+  exams          ExamQuestion[] // Explicit link to the join table
   lastEditedById String?
-  lastEditedBy   Json?         
+  lastEditedBy   Json?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+}
+
+model ExamQuestion {
+  examId     String
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Metadata specific to how the question sits inside a particular exam
+  sortOrder  Int // e.g., 1, 2, 3... defines the exact question sequence in this exam
+  partNumber Int? // e.g., Great for TOEIC Part 1, Part 2, etc.
+
+  @@id([examId, questionId]) // Composite primary key ensures a question isn't added to the same exam twice
+  @@index([questionId]) // Optimizes lookups when finding all exams containing a specific question
 }
 
 model ExamHistory {
   id               String   @id @default(uuid())
   userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade) 
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   examId           String
-  exam             Exam     @relation(fields: [examId], references: [id], onDelete: Cascade) 
+  exam             Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   score            Int
   totalQuestions   Int
   correctQuestions Int
-  isPassed         Boolean  
-  answers          Json
-  startedAt        DateTime 
-  submittedAt      DateTime 
+  isPassed         Boolean
+  answers          Json // Tip: Store user answers AND question snapshots here to prevent history corruption if a question changes later
+  startedAt        DateTime
+  submittedAt      DateTime
   timeTakenSeconds Int
   createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@index([examId])
+}
+
+// ==========================================
+// --- FLASHCARDS MODELS ---
+// ==========================================
+
+model Deck {
+  id          String         @id @default(uuid())
+  name        String
+  description String?        @db.Text
+  category    ExamCategory // Ties flashcards to your overarching core exam categorization (e.g. TOEIC)
+  status      DeckStatus     @default(ACTIVE)
+  visibility  DeckVisibility @default(PRIVATE) // Dictates user privacy controls
+
+  // Custom Co-Creation Elements
+  creatorId String? // Made optional (null = Official baseline System/Admin Deck)
+  creator   User?   @relation("DeckCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  cards        Flashcard[]
+  progressions UserDeckProgress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creatorId])
+}
+
+model Flashcard {
+  id     String @id @default(uuid())
+  deckId String
+  deck   Deck   @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  // High-density content elements matching your question module architecture
+  frontContent String  @db.Text // The question, word, or sentence context prompt
+  backContent  String  @db.Text // The definition, translation, or answer resolution
+  explanation  String? @db.Text
+  imagePath    String?
+  audioPath    String?
+  partNumber   Int? // Optional segment context (e.g. Map directly to TOEIC context vocab rules)
+
+  status DeckStatus @default(ACTIVE)
+
+  // Track who created the item (allows individual card author tracking inside shared decks)
+  creatorId String? // Null = Official platform-provided content
+  creator   User?   @relation("FlashcardCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  userProgresses FlashcardProgress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deckId])
+  @@index([creatorId])
+}
+
+model FlashcardProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcardId String
+  flashcard   Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  // Spaced-Repetition Core Mathematical Tracking parameters (SM-2 standard)
+  box          BoxLevel @default(BOX_1)
+  intervalDays Int      @default(1) // Interval duration calculation placeholder step
+  easeFactor   Float    @default(2.5) // Quality adjustment parameter modifier scale
+  repetitions  Int      @default(0) // Count of sequential clean structural passes resolved
+
+  nextReviewAt   DateTime  @default(now()) // Timestamp marker for engine scheduling lookups
+  lastReviewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, flashcardId]) // Assures a single record handles tracking per structural instance
+  @@index([userId, nextReviewAt]) // Highly optimizes active system queue selection pipelines
+}
+
+model UserDeckProgress {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deckId String
+  deck   Deck   @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  totalCardsViewed Int      @default(0)
+  masteredCards    Int      @default(0)
+  lastStudiedAt    DateTime @default(now())
+
+  @@unique([userId, deckId])
+}
+
+// ==========================================
+// --- ROLE & PERMISSION MODELS (ĐÃ CHUẨN HÓA CAMELCASE) ---
+// ==========================================
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique @db.VarChar(50)
+  description String?      @db.Text
+  permissions Permission[]
+  users       User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+}
+
+model Permission {
+  id         Int              @id @default(autoincrement())
+  roleId     Int
+  role       Role             @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  resource   String // VD: "EXAM", "QUESTION", "DECK"
+  scope      PermissionScope
+  permission PermissionAction
+  allowed    Boolean          @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roleId, scope, permission, resource])
 }

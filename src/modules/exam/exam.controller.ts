@@ -27,4 +27,34 @@ export class ExamController {
       return res.status(500).json({ message: "Đã xảy ra lỗi hệ thống." });
     }
   }
+
+  async submitExam(req: Request, res: Response) {
+    try {
+      const { examId, answers, startedAt, submittedAt } = req.body;
+
+      // ⚠️ Note: Replace this hardcoded ID with your actual auth middleware value (e.g., req.user.id)
+      const userId = "2a9102b2-8499-41eb-940d-92431c85dada";
+
+      if (!examId || !answers || !startedAt || !submittedAt) {
+        return res.status(400).json({ message: "Thiếu thông tin nộp bài." });
+      }
+
+      const history = await examService.saveExamHistory({
+        userId,
+        examId,
+        answers,
+        startedAt,
+        submittedAt,
+      });
+
+      return res.status(201).json(history);
+    } catch (error: any) {
+      if (error.message === "Exam not found") {
+        return res.status(444).json({ message: "Không tìm thấy đề thi này." });
+      }
+      return res.status(500).json({
+        message: error.message || "Đã xảy ra lỗi hệ thống khi nộp bài.",
+      });
+    }
+  }
 }

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { ExamService } from "./exam.service";
+import { type AuthenticatedRequest } from "../../middleware/auth";
 
 const examService = new ExamService();
 
@@ -28,12 +29,13 @@ export class ExamController {
     }
   }
 
-  async submitExam(req: Request, res: Response) {
+  async submitExam(req: AuthenticatedRequest, res: Response) {
     try {
       const { examId, answers, startedAt, submittedAt } = req.body;
 
       // ⚠️ Note: Replace this hardcoded ID with your actual auth middleware value (e.g., req.user.id)
-      const userId = "2a9102b2-8499-41eb-940d-92431c85dada";
+      console.log(req);
+      const userId = req.user.id;
 
       if (!examId || !answers || !startedAt || !submittedAt) {
         return res.status(400).json({ message: "Thiếu thông tin nộp bài." });

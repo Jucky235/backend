@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ExamController } from "./exam.controller";
+import { authenticateJWT } from "../../middleware/auth";
 
 const router = Router();
 const examController = new ExamController();
@@ -11,6 +12,8 @@ router.get("/", examController.getAll);
 router.get("/:id", examController.getById);
 
 // POST Submit exam
-router.post("/submit", examController.submitExam);
+router.post("/submit", authenticateJWT, (req, res) =>
+  examController.submitExam(req, res),
+);
 
 export default router;

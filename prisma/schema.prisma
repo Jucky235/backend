@@ -68,6 +68,22 @@ enum PermissionScope {
   USER_WISE
 }
 
+// News +++++++++++++++++++++++++++++++
+enum NewsStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum NewsCategory {
+  GENERAL
+  EXAM_TIPS
+  ANNOUNCEMENT
+  SYSTEM_UPDATE
+  FEATURED
+}
+// -----------------------------
+
 // ==========================================
 // --- MODELS ---
 // ==========================================
@@ -283,3 +299,54 @@ model Permission {
 
   @@unique([roleId, scope, permission, resource])
 }
+
+
+//Standalone MODELS
+// ==========================================
+// --- NEWS & ANNOUNCEMENT MODELS ---
+// ==========================================
+
+model News {
+  id          String       @id @default(uuid())
+  title       String
+  slug        String       @unique // For clean URLs like /news/toeic-2026-updates
+  summary     String?      @db.Text
+  content     String       @db.Text
+  thumbnail   String?
+  category    NewsCategory @default(GENERAL)
+  status      NewsStatus   @default(DRAFT)
+  viewsCount  Int          @default(0)
+
+  // Optional string to display static author name (e.g. "Platform Team" or "Admin")
+  authorName  String?      @default("Admin")
+
+  tags        NewsTagRelation[]
+
+  publishedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+model NewsTag {
+  id        Int               @id @default(autoincrement())
+  name      String            @unique @db.VarChar(50)
+  slug      String            @unique
+  news      NewsTagRelation[]
+
+  createdAt DateTime          @default(now())
+}
+
+model NewsTagRelation {
+  newsId String
+  news   News    @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  tagId  Int
+  tag    NewsTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([newsId, tagId])
+  @@index([tagId])
+}
+
+
+

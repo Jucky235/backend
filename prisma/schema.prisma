@@ -30,6 +30,8 @@ enum AuthProvider {
 
 enum ExamCategory {
   TOEIC
+  IELTS
+  GENERAL
 }
 
 enum ExamStatus {
@@ -68,7 +70,7 @@ enum PermissionScope {
   USER_WISE
 }
 
-// News +++++++++++++++++++++++++++++++
+// News
 enum NewsStatus {
   DRAFT
   PUBLISHED
@@ -82,7 +84,6 @@ enum NewsCategory {
   SYSTEM_UPDATE
   FEATURED
 }
-// -----------------------------
 
 // ==========================================
 // --- MODELS ---
@@ -91,7 +92,7 @@ enum NewsCategory {
 model User {
   id            String        @id @default(uuid())
   email         String        @unique
-  password      String? // Optional to support Google OAuth without empty string hacks
+  password      String? // Optional to support Google OAuth
   name          String
   phoneNumber   String?
   gender        Gender?
@@ -107,7 +108,7 @@ model User {
   flashcardProgressions FlashcardProgress[]
   deckProgressions      UserDeckProgress[]
 
-  // Role relation (ĐÃ ĐƯỢC SỬA)
+  // Role relation
   roleId Int?
   role   Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
@@ -121,10 +122,32 @@ model Exam {
   category  ExamCategory
   time      Int // Duration in minutes or seconds
   status    ExamStatus     @default(ACTIVE)
-  questions ExamQuestion[] // Explicit link to the join table
+  parts     ExamPart[] // Multi-part structure (e.g. Part 1, Part 2, Part 3...)
+  questions ExamQuestion[] // Explicit link to individual questions
   histories ExamHistory[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+}
+
+// ==========================================
+// --- EXAM PART MODEL (NEW) ---
+// ==========================================
+model ExamPart {
+  id           String         @id @default(uuid())
+  examId       String
+  exam         Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  partNumber   Int // e.g. 1, 2, 3...
+  name         String // e.g. "Part 1: Photographs", "Part 2: Question-Response"
+  instructions String?        @db.Text
+  audioPath    String? // Optional global audio file for the entire part (e.g. TOEIC Listening)
+  sortOrder    Int            @default(1)
+  questions    ExamQuestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, partNumber])
+  @@index([examId])
 }
 
 model Question {
@@ -133,6 +156,7 @@ model Question {
   options        Json // Structured JSON for answer choices
   right_answer   String
   category       ExamCategory
+  partNumber     Int? // ADDED: General default Part Number classification (e.g. 1 for TOEIC Part 1)
   explanation    String?        @db.Text
   status         QuestionStatus @default(ACTIVE)
   topicNumber    Int?
@@ -147,16 +171,21 @@ model Question {
 
 model ExamQuestion {
   examId     String
-  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  exam       Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
   questionId String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Optional direct link to an ExamPart
+  partId     String?
+  part       ExamPart? @relation(fields: [partId], references: [id], onDelete: SetNull)
 
   // Metadata specific to how the question sits inside a particular exam
-  sortOrder  Int // e.g., 1, 2, 3... defines the exact question sequence in this exam
-  partNumber Int? // e.g., Great for TOEIC Part 1, Part 2, etc.
+  sortOrder  Int // e.g. 1, 2, 3... defines the exact question sequence
+  partNumber Int? // e.g., TOEIC Part 1, Part 2...
 
-  @@id([examId, questionId]) // Composite primary key ensures a question isn't added to the same exam twice
-  @@index([questionId]) // Optimizes lookups when finding all exams containing a specific question
+  @@id([examId, questionId])
+  @@index([questionId])
+  @@index([examId, partNumber])
 }
 
 model ExamHistory {
@@ -169,7 +198,7 @@ model ExamHistory {
   totalQuestions   Int
   correctQuestions Int
   isPassed         Boolean
-  answers          Json // Tip: Store user answers AND question snapshots here to prevent history corruption if a question changes later
+  answers          Json // Store user answers AND question snapshots
   startedAt        DateTime
   submittedAt      DateTime
   timeTakenSeconds Int
@@ -187,12 +216,11 @@ model Deck {
   id          String         @id @default(uuid())
   name        String
   description String?        @db.Text
-  category    ExamCategory // Ties flashcards to your overarching core exam categorization (e.g. TOEIC)
+  category    ExamCategory
   status      DeckStatus     @default(ACTIVE)
-  visibility  DeckVisibility @default(PRIVATE) // Dictates user privacy controls
+  visibility  DeckVisibility @default(PRIVATE)
 
-  // Custom Co-Creation Elements
-  creatorId String? // Made optional (null = Official baseline System/Admin Deck)
+  creatorId String?
   creator   User?   @relation("DeckCreator", fields: [creatorId], references: [id], onDelete: Cascade)
 
   cards        Flashcard[]
@@ -205,22 +233,19 @@ model Deck {
 }
 
 model Flashcard {
-  id     String @id @default(uuid())
-  deckId String
-  deck   Deck   @relation(fields: [deckId], references: [id], onDelete: Cascade)
-
-  // High-density content elements matching your question module architecture
-  frontContent String  @db.Text // The question, word, or sentence context prompt
-  backContent  String  @db.Text // The definition, translation, or answer resolution
-  explanation  String? @db.Text
+  id           String   @id @default(uuid())
+  deckId       String
+  deck         Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  frontContent String   @db.Text
+  backContent  String   @db.Text
+  explanation  String?  @db.Text
   imagePath    String?
   audioPath    String?
-  partNumber   Int? // Optional segment context (e.g. Map directly to TOEIC context vocab rules)
+  partNumber   Int? // Optional segment context (e.g. TOEIC context rules)
 
   status DeckStatus @default(ACTIVE)
 
-  // Track who created the item (allows individual card author tracking inside shared decks)
-  creatorId String? // Null = Official platform-provided content
+  creatorId String?
   creator   User?   @relation("FlashcardCreator", fields: [creatorId], references: [id], onDelete: Cascade)
 
   userProgresses FlashcardProgress[]
@@ -233,34 +258,33 @@ model Flashcard {
 }
 
 model FlashcardProgress {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  flashcardId String
-  flashcard   Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcardId  String
+  flashcard    Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
 
-  // Spaced-Repetition Core Mathematical Tracking parameters (SM-2 standard)
   box          BoxLevel @default(BOX_1)
-  intervalDays Int      @default(1) // Interval duration calculation placeholder step
-  easeFactor   Float    @default(2.5) // Quality adjustment parameter modifier scale
-  repetitions  Int      @default(0) // Count of sequential clean structural passes resolved
+  intervalDays Int      @default(1)
+  easeFactor   Float    @default(2.5)
+  repetitions  Int      @default(0)
 
-  nextReviewAt   DateTime  @default(now()) // Timestamp marker for engine scheduling lookups
+  nextReviewAt   DateTime  @default(now())
   lastReviewedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, flashcardId]) // Assures a single record handles tracking per structural instance
-  @@index([userId, nextReviewAt]) // Highly optimizes active system queue selection pipelines
+  @@unique([userId, flashcardId])
+  @@index([userId, nextReviewAt])
 }
 
 model UserDeckProgress {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deckId String
-  deck   Deck   @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deckId           String
+  deck             Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
 
   totalCardsViewed Int      @default(0)
   masteredCards    Int      @default(0)
@@ -270,7 +294,7 @@ model UserDeckProgress {
 }
 
 // ==========================================
-// --- ROLE & PERMISSION MODELS (ĐÃ CHUẨN HÓA CAMELCASE) ---
+// --- ROLE & PERMISSION MODELS ---
 // ==========================================
 
 model Role {
@@ -282,14 +306,13 @@ model Role {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
 }
 
 model Permission {
   id         Int              @id @default(autoincrement())
   roleId     Int
   role       Role             @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  resource   String // VD: "EXAM", "QUESTION", "DECK"
+  resource   String
   scope      PermissionScope
   permission PermissionAction
   allowed    Boolean          @default(false)
@@ -300,31 +323,26 @@ model Permission {
   @@unique([roleId, scope, permission, resource])
 }
 
-
-//Standalone MODELS
 // ==========================================
 // --- NEWS & ANNOUNCEMENT MODELS ---
 // ==========================================
 
 model News {
-  id          String       @id @default(uuid())
+  id          String            @id @default(uuid())
   title       String
-  slug        String       @unique // For clean URLs like /news/toeic-2026-updates
-  summary     String?      @db.Text
-  content     String       @db.Text
+  slug        String            @unique
+  summary     String?           @db.Text
+  content     String            @db.Text
   thumbnail   String?
-  category    NewsCategory @default(GENERAL)
-  status      NewsStatus   @default(DRAFT)
-  viewsCount  Int          @default(0)
-
-  // Optional string to display static author name (e.g. "Platform Team" or "Admin")
-  authorName  String?      @default("Admin")
-
+  category    NewsCategory      @default(GENERAL)
+  status      NewsStatus        @default(DRAFT)
+  viewsCount  Int               @default(0)
+  authorName  String?           @default("Admin")
   tags        NewsTagRelation[]
 
   publishedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([status, publishedAt])
 }
@@ -347,6 +365,3 @@ model NewsTagRelation {
   @@id([newsId, tagId])
   @@index([tagId])
 }
-
-
-

@@ -4,6 +4,7 @@ import userRoutes from "./modules/user/user.routes";
 import examRoutes from "./modules/exam/exam.routes";
 import flashcardRoutes from "./modules/flashcard/flashcard.routes";
 import newRoutes from "./modules/new/new.routes";
+import questionRoutes from "./modules/questions/question.routes";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +17,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api/news", newRoutes);
+app.use("/api/questions", questionRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Modular server running on http://localhost:${PORT}`);

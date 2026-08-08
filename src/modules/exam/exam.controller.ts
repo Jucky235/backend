@@ -29,13 +29,53 @@ export class ExamController {
     }
   }
 
+  async create(req: Request, res: Response) {
+    try {
+      const {
+        name,
+        code,
+        description,
+        category,
+        status,
+        durationMinutes,
+        questions,
+      } = req.body;
+
+      if (!name || !category) {
+        return res.status(400).json({
+          message: "Tên đề thi và danh mục không được để trống.",
+        });
+      }
+
+      const createdExam = await examService.createExam({
+        name,
+        code,
+        description,
+        category,
+        status,
+        durationMinutes,
+        questions,
+      });
+
+      return res.status(201).json(createdExam);
+    } catch (error: any) {
+      if (error.message?.includes("invalid or inactive question IDs")) {
+        return res.status(400).json({ message: error.message });
+      }
+      return res.status(500).json({
+        message: error.message || "Đã xảy ra lỗi hệ thống khi tạo đề thi.",
+      });
+    }
+  }
+
   async submitExam(req: AuthenticatedRequest, res: Response) {
     try {
       const { examId, answers, startedAt, submittedAt } = req.body;
+      const userId = req.user?.id;
 
-      // ⚠️ Note: Replace this hardcoded ID with your actual auth middleware value (e.g., req.user.id)
-      console.log(req);
-      const userId = req.user.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Người dùng chưa xác thực." });
+      }
 
       if (!examId || !answers || !startedAt || !submittedAt) {
         return res.status(400).json({ message: "Thiếu thông tin nộp bài." });
@@ -52,7 +92,7 @@ export class ExamController {
       return res.status(201).json(history);
     } catch (error: any) {
       if (error.message === "Exam not found") {
-        return res.status(444).json({ message: "Không tìm thấy đề thi này." });
+        return res.status(404).json({ message: "Không tìm thấy đề thi này." });
       }
       return res.status(500).json({
         message: error.message || "Đã xảy ra lỗi hệ thống khi nộp bài.",

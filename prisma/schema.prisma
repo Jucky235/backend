@@ -116,22 +116,22 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+// ==========================================
+// --- EXAM & QUESTION MODELS ---
+// ==========================================
+
 model Exam {
-  id        String         @id @default(uuid())
+  id        String        @id @default(uuid())
   name      String
   category  ExamCategory
   time      Int // Duration in minutes or seconds
-  status    ExamStatus     @default(ACTIVE)
-  parts     ExamPart[] // Multi-part structure (e.g. Part 1, Part 2, Part 3...)
-  questions ExamQuestion[] // Explicit link to individual questions
+  status    ExamStatus    @default(ACTIVE)
+  parts     ExamPart[] // Multi-part structure (e.g. Part 1, Part 2...)
   histories ExamHistory[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }
 
-// ==========================================
-// --- EXAM PART MODEL (NEW) ---
-// ==========================================
 model ExamPart {
   id           String         @id @default(uuid())
   examId       String
@@ -139,9 +139,9 @@ model ExamPart {
   partNumber   Int // e.g. 1, 2, 3...
   name         String // e.g. "Part 1: Photographs", "Part 2: Question-Response"
   instructions String?        @db.Text
-  audioPath    String? // Optional global audio file for the entire part (e.g. TOEIC Listening)
+  audioPath    String? // Optional global audio file for the entire part
   sortOrder    Int            @default(1)
-  questions    ExamQuestion[]
+  questions    ExamQuestion[] // Part owns Questions strictly
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -156,13 +156,13 @@ model Question {
   options        Json // Structured JSON for answer choices
   right_answer   String
   category       ExamCategory
-  partNumber     Int? // ADDED: General default Part Number classification (e.g. 1 for TOEIC Part 1)
+  partNumber     Int? // General default Part Number classification (e.g. 1 for TOEIC Part 1)
   explanation    String?        @db.Text
   status         QuestionStatus @default(ACTIVE)
   topicNumber    Int?
   imagePath      String?
   audioPath      String?
-  exams          ExamQuestion[] // Explicit link to the join table
+  examParts      ExamQuestion[] // Joined to ExamPart through ExamQuestion
   lastEditedById String?
   lastEditedBy   Json?
   createdAt      DateTime       @default(now())
@@ -170,22 +170,16 @@ model Question {
 }
 
 model ExamQuestion {
-  examId     String
-  exam       Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  partId     String
+  part       ExamPart @relation(fields: [partId], references: [id], onDelete: Cascade)
   questionId String
-  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
-  // Optional direct link to an ExamPart
-  partId     String?
-  part       ExamPart? @relation(fields: [partId], references: [id], onDelete: SetNull)
+  // Position sequence within this specific Part
+  sortOrder Int // e.g. 1, 2, 3...
 
-  // Metadata specific to how the question sits inside a particular exam
-  sortOrder  Int // e.g. 1, 2, 3... defines the exact question sequence
-  partNumber Int? // e.g., TOEIC Part 1, Part 2...
-
-  @@id([examId, questionId])
+  @@id([partId, questionId])
   @@index([questionId])
-  @@index([examId, partNumber])
 }
 
 model ExamHistory {
@@ -233,12 +227,12 @@ model Deck {
 }
 
 model Flashcard {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   deckId       String
-  deck         Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  frontContent String   @db.Text
-  backContent  String   @db.Text
-  explanation  String?  @db.Text
+  deck         Deck      @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  frontContent String    @db.Text
+  backContent  String    @db.Text
+  explanation  String?   @db.Text
   imagePath    String?
   audioPath    String?
   partNumber   Int? // Optional segment context (e.g. TOEIC context rules)
@@ -258,9 +252,9 @@ model Flashcard {
 }
 
 model FlashcardProgress {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   flashcardId  String
   flashcard    Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
 
@@ -309,13 +303,13 @@ model Role {
 }
 
 model Permission {
-  id         Int              @id @default(autoincrement())
+  id         Int             @id @default(autoincrement())
   roleId     Int
-  role       Role             @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role       Role            @relation(fields: [roleId], references: [id], onDelete: Cascade)
   resource   String
   scope      PermissionScope
   permission PermissionAction
-  allowed    Boolean          @default(false)
+  allowed    Boolean         @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

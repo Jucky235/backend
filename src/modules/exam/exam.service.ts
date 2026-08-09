@@ -1,10 +1,17 @@
 import { prisma } from "../../config/db";
-import { ExamStatus, ExamCategory } from "@prisma/client";
+import { ExamStatus, ExamCategory, Prisma } from "@prisma/client";
 
 export interface CreateExamQuestionInput {
   questionId: string;
   sortOrder: number;
-  partNumber?: number;
+  partNumber: number; // Links question to a specific part
+}
+
+export interface CreateExamPartInput {
+  partNumber: number;
+  name?: string;
+  description?: string;
+  sortOrder?: number;
 }
 
 export interface CreateExamInput {
@@ -14,7 +21,19 @@ export interface CreateExamInput {
   category: ExamCategory;
   status?: ExamStatus;
   durationMinutes?: number;
+  parts?: CreateExamPartInput[]; // Explicit user-defined parts
   questions?: CreateExamQuestionInput[];
+}
+
+export interface AddQuestionsToExamPayload {
+  questionId: string;
+  partNumber?: number;
+  sortOrder?: number;
+}
+
+export interface AddQuestionsToExamInput {
+  examId: string;
+  questions: AddQuestionsToExamPayload[];
 }
 
 export class ExamService {
@@ -26,17 +45,23 @@ export class ExamService {
     });
   }
 
-  // Fetch a specific exam with active questions flattened
-  async getExamById(id: string) {
-    const exam = await prisma.exam.findUnique({
+  // Fetch a specific exam with active questions flattened across all parts
+  async getExamById(
+    id: string,
+    client: Prisma.TransactionClient | typeof prisma = prisma,
+  ) {
+    const exam = await client.exam.findUnique({
       where: { id },
       include: {
-        questions: {
-          orderBy: {
-            sortOrder: "asc",
-          },
+        parts: {
+          orderBy: { sortOrder: "asc" },
           include: {
-            question: true,
+            questions: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                question: true,
+              },
+            },
           },
         },
       },
@@ -46,32 +71,40 @@ export class ExamService {
       throw new Error("Exam not found");
     }
 
-    const activeQuestions = exam.questions
-      .filter((eq) => eq.question.status === "ACTIVE")
-      .map((eq) => ({
-        ...eq.question,
-        sortOrder: eq.sortOrder,
-        partNumber: eq.partNumber,
-      }));
+    // Flatten questions across all parts while attaching part metadata
+    const activeQuestions = exam.parts.flatMap((part) =>
+      part.questions
+        .filter((eq) => eq.question.status === "ACTIVE")
+        .map((eq) => ({
+          ...eq.question,
+          sortOrder: eq.sortOrder,
+          partNumber: part.partNumber,
+          partId: part.id,
+        })),
+    );
+
+    const { parts, ...examData } = exam;
 
     return {
-      ...exam,
+      ...examData,
       questions: activeQuestions,
+      parts, // Keep original parts metadata in payload
     };
   }
 
-  // Create a new exam along with question associations in a single transaction
+  // Create a new exam along with explicit user parts and question associations
   async createExam(data: CreateExamInput) {
     const {
       name,
       description,
       category,
       status = "ACTIVE",
-      durationMinutes = 60, // Default to 60 minutes if undefined to fulfill non-nullable 'time' field
+      durationMinutes = 60,
+      parts = [],
       questions = [],
     } = data;
 
-    // Validate that provided question IDs exist and are active
+    // 1. Validate provided question IDs
     if (questions.length > 0) {
       const questionIds = questions.map((q) => q.questionId);
       const existingQuestions = await prisma.question.findMany({
@@ -92,42 +125,178 @@ export class ExamService {
     }
 
     return prisma.$transaction(async (tx) => {
+      // 2. Create the Exam
       const newExam = await tx.exam.create({
         data: {
           name,
           category,
           status,
           time: durationMinutes,
-          questions: {
-            create: questions.map((q) => ({
-              questionId: q.questionId,
-              sortOrder: q.sortOrder,
-              partNumber: q.partNumber,
-            })),
-          },
-        },
-        include: {
-          questions: {
-            orderBy: {
-              sortOrder: "asc",
-            },
-            include: {
-              question: true,
-            },
-          },
         },
       });
 
-      const formattedQuestions = newExam.questions.map((eq) => ({
-        ...eq.question,
-        sortOrder: eq.sortOrder,
-        partNumber: eq.partNumber,
-      }));
+      // 3. Group questions by partNumber
+      const questionsByPart = questions.reduce<
+        Record<number, CreateExamQuestionInput[]>
+      >((acc, q) => {
+        const partNum = q.partNumber || 1;
+        if (!acc[partNum]) acc[partNum] = [];
+        acc[partNum].push(q);
+        return acc;
+      }, {});
 
-      return {
-        ...newExam,
-        questions: formattedQuestions,
-      };
+      // 4. Combine explicit user parts and parts derived from questions
+      const userPartNumbers = new Set(parts.map((p) => p.partNumber));
+      const questionPartNumbers = Object.keys(questionsByPart).map(Number);
+
+      // Merge all distinct part numbers needed
+      const allPartNumbers = Array.from(
+        new Set([...userPartNumbers, ...questionPartNumbers]),
+      ).sort((a, b) => a - b);
+
+      // 5. Create each ExamPart and attach associated questions
+      for (const partNumber of allPartNumbers) {
+        const customPartConfig = parts.find((p) => p.partNumber === partNumber);
+        const partQuestions = questionsByPart[partNumber] || [];
+
+        await tx.examPart.create({
+          data: {
+            examId: newExam.id,
+            partNumber: partNumber,
+            name: customPartConfig?.name || `Part ${partNumber}`,
+            sortOrder: customPartConfig?.sortOrder ?? partNumber,
+            questions: {
+              create: partQuestions.map((q) => ({
+                questionId: q.questionId,
+                sortOrder: q.sortOrder,
+              })),
+            },
+          },
+        });
+      }
+
+      // Fetch complete created exam structure
+      return this.getExamById(newExam.id, tx);
+    });
+  }
+
+  /**
+   * Add new questions to an existing exam.
+   * Auto-creates ExamPart if the targeted partNumber does not exist yet.
+   */
+  async addQuestionsToExam(data: AddQuestionsToExamInput) {
+    const { examId, questions } = data;
+
+    if (!questions || questions.length === 0) {
+      throw new Error("No questions provided to add.");
+    }
+
+    // 1. Verify existence of the exam and fetch existing parts
+    const exam = await prisma.exam.findUnique({
+      where: { id: examId },
+      include: {
+        parts: {
+          include: {
+            questions: {
+              select: { questionId: true, sortOrder: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!exam) {
+      throw new Error("Exam not found.");
+    }
+
+    // 2. Validate all provided question IDs exist and are active
+    const questionIds = Array.from(new Set(questions.map((q) => q.questionId)));
+    const existingQuestions = await prisma.question.findMany({
+      where: {
+        id: { in: questionIds },
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+
+    if (existingQuestions.length !== questionIds.length) {
+      const existingSet = new Set(existingQuestions.map((q) => q.id));
+      const invalidIds = questionIds.filter((id) => !existingSet.has(id));
+      throw new Error(
+        `One or more invalid or inactive question IDs: ${invalidIds.join(", ")}`,
+      );
+    }
+
+    // 3. Process addition within a transaction
+    return prisma.$transaction(async (tx) => {
+      // Group incoming questions by part number
+      const questionsByPart = questions.reduce<
+        Record<number, AddQuestionsToExamPayload[]>
+      >((acc, q) => {
+        const partNum = q.partNumber || 1;
+        if (!acc[partNum]) acc[partNum] = [];
+        acc[partNum].push(q);
+        return acc;
+      }, {});
+
+      for (const [partNumStr, targetQuestions] of Object.entries(
+        questionsByPart,
+      )) {
+        const partNumber = Number(partNumStr);
+
+        // Find existing part or auto-create one
+        let targetPart = exam.parts.find((p) => p.partNumber === partNumber);
+
+        if (!targetPart) {
+          targetPart = await tx.examPart.create({
+            data: {
+              examId: exam.id,
+              partNumber: partNumber,
+              name: `Part ${partNumber}`,
+              sortOrder: partNumber,
+            },
+            include: {
+              questions: { select: { questionId: true, sortOrder: true } },
+            },
+          });
+        }
+
+        // Fetch current questions for accuracy within transaction scope
+        const currentPartQuestions = await tx.examQuestion.findMany({
+          where: { partId: targetPart.id },
+          select: { questionId: true, sortOrder: true },
+        });
+
+        // Set of question IDs currently in this specific part
+        const existingQuestionIdsInPart = new Set(
+          currentPartQuestions.map((eq) => eq.questionId),
+        );
+
+        // Filter out questions already present in this part
+        const newQuestionsForPart = targetQuestions.filter(
+          (q) => !existingQuestionIdsInPart.has(q.questionId),
+        );
+
+        if (newQuestionsForPart.length > 0) {
+          // Calculate max sortOrder using actual saved sort orders
+          const maxSortOrder =
+            currentPartQuestions.length > 0
+              ? Math.max(...currentPartQuestions.map((q) => q.sortOrder ?? 0))
+              : 0;
+
+          await tx.examQuestion.createMany({
+            data: newQuestionsForPart.map((q, index) => ({
+              partId: targetPart.id, // Correct key matching schema relation
+              questionId: q.questionId,
+              sortOrder: q.sortOrder ?? maxSortOrder + index + 1,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      // Return updated complete exam object
+      return this.getExamById(exam.id, tx);
     });
   }
 
@@ -142,19 +311,28 @@ export class ExamService {
     const exam = await prisma.exam.findUnique({
       where: { id: data.examId },
       include: {
-        questions: {
-          include: { question: true },
+        parts: {
+          include: {
+            questions: {
+              include: { question: true },
+            },
+          },
         },
       },
     });
 
     if (!exam) throw new Error("Exam not found");
 
-    const activeQuestions = exam.questions.filter(
-      (eq) => eq.question.status === "ACTIVE",
+    const activeQuestions = exam.parts.flatMap((part) =>
+      part.questions
+        .filter((eq) => eq.question.status === "ACTIVE")
+        .map((eq) => ({
+          ...eq,
+          partNumber: part.partNumber,
+        })),
     );
-    const totalQuestions = activeQuestions.length;
 
+    const totalQuestions = activeQuestions.length;
     let correctQuestions = 0;
     const historyAnswersSnapshot: any[] = [];
 

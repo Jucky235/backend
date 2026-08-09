@@ -9,7 +9,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { prisma } from "../src/config/db";
 
-// Cấu hình URL Cloudinary bao gồm cả Version và Folder đích
+// Cloudinary Base URLs
 const CLOUDINARY_IMAGE_BASE =
   "https://res.cloudinary.com/mxxbk0jh/image/upload/f_auto,q_auto/v1783523250";
 
@@ -18,29 +18,41 @@ const CLOUDINARY_AUDIO_BASE =
 
 const PIPELINE_DIR = path.resolve("../toeicPipeline");
 
+interface QuestionJson {
+  id: string;
+  content?: string;
+  options: Record<string, string>;
+  right_answer: string;
+  explanation?: string;
+  partNumber: number;
+  sortOrder: number;
+  audioPath?: string;
+  imagePrompt?: string;
+}
+
 async function main() {
   console.log(
-    "🌱 Starting full database seeding (Roles + Users + TOEIC Questions)...",
+    "🌱 Starting full database seeding (Roles + Users + TOEIC Exam Parts & Questions)...",
   );
 
   // ==========================================
-  // BƯỚC 1: DỌN DẸP DỮ LIỆU CŨ (Tuân thủ thứ tự khóa ngoại FK)
+  // STEP 1: CLEAN EXISTING DATA (Enforce FK Order)
   // ==========================================
   await prisma.examQuestion.deleteMany({});
   await prisma.question.deleteMany({});
+  await prisma.examPart.deleteMany({});
   await prisma.exam.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.permission.deleteMany({});
   await prisma.role.deleteMany({});
 
   console.log(
-    "🧹 Cleaned existing records (Roles, Permissions, Users, Exams, Questions).",
+    "🧹 Cleaned existing records (Roles, Permissions, Users, Exams, ExamParts, Questions).",
   );
 
   // ==========================================
-  // BƯỚC 2: SEED ROLES & PERMISSIONS
+  // STEP 2: SEED ROLES & PERMISSIONS
   // ==========================================
-  // 1. Tạo Role ADMIN
   const adminRole = await prisma.role.create({
     data: {
       name: "ADMIN",
@@ -48,7 +60,6 @@ async function main() {
     },
   });
 
-  // 2. Tạo Role USER (Học viên)
   const userRole = await prisma.role.create({
     data: {
       name: "USER",
@@ -56,10 +67,8 @@ async function main() {
     },
   });
 
-  // Danh sách tài nguyên chính trong hệ thống
   const resources = ["EXAM", "QUESTION", "FLASHCARD", "USER"];
 
-  // Quyền cho ADMIN: Đầy đủ các hành động CREATE, READ, UPDATE, DELETE cho mọi tài nguyên
   const adminPermissionsData = resources.flatMap((resource) =>
     Object.values(PermissionAction).map((action) => ({
       roleId: adminRole.id,
@@ -70,7 +79,6 @@ async function main() {
     })),
   );
 
-  // Quyền cho USER: Chỉ xem (READ) toàn hệ thống, hoặc chỉnh sửa nội dung thuộc quyền sở hữu cá nhân
   const userPermissionsData = resources.flatMap((resource) => [
     {
       roleId: userRole.id,
@@ -102,7 +110,7 @@ async function main() {
   console.log("🔐 Seeded Roles (ADMIN, USER) and default Permissions.");
 
   // ==========================================
-  // BƯỚC 3: SEED TÀI KHOẢN USER TEST (Gán Role ADMIN)
+  // STEP 3: SEED TEST USER
   // ==========================================
   const plainPassword = "vuongdeptrai";
   const saltRounds = 10;
@@ -116,7 +124,7 @@ async function main() {
       phoneNumber: "0912345678",
       gender: Gender.MALE,
       provider: AuthProvider.EMAIL,
-      roleId: adminRole.id, // Gán Role ADMIN cho user test
+      roleId: adminRole.id,
       refreshTokens: [],
     },
   });
@@ -126,7 +134,7 @@ async function main() {
   );
 
   // ==========================================
-  // BƯỚC 4: ĐỌC VÀ SEED DỮ LIỆU TỪ 14 FILE JSON PIPELINE
+  // STEP 4: SEED EXAM & EXAM PARTS (Option A Schema)
   // ==========================================
   const exam = await prisma.exam.create({
     data: {
@@ -137,86 +145,131 @@ async function main() {
     },
   });
 
-  const targetFiles = [
-    { name: "toeic_part_1_from_1_output.json", part: 1 },
-    { name: "toeic_part_2_from_7_output.json", part: 2 },
-    { name: "toeic_part_2_from_19_output.json", part: 2 },
-    { name: "toeic_part_3_from_32_output.json", part: 3 },
-    { name: "toeic_part_3_from_47_output.json", part: 3 },
-    { name: "toeic_part_3_from_62_output.json", part: 3 },
-    { name: "toeic_part_4_from_71_output.json", part: 4 },
-    { name: "toeic_part_4_from_86_output.json", part: 4 },
-    { name: "toeic_part_5_from_101_output.json", part: 5 },
-    { name: "toeic_part_5_from_116_output.json", part: 5 },
-    { name: "toeic_part_6_from_131_output.json", part: 6 },
-    { name: "toeic_part_6_from_139_output.json", part: 6 },
-    { name: "toeic_part_7_from_147_output.json", part: 7 },
-    { name: "toeic_part_7_from_163_output.json", part: 7 },
-    { name: "toeic_part_7_from_183_output.json", part: 7 },
-  ];
+  // Create standard TOEIC Parts 1 through 7 for this exam
+  const toeicPartNames: Record<number, string> = {
+    1: "Part 1: Photographs",
+    2: "Part 2: Question-Response",
+    3: "Part 3: Conversations",
+    4: "Part 4: Talks",
+    5: "Part 5: Incomplete Sentences",
+    6: "Part 6: Text Completion",
+    7: "Part 7: Reading Comprehension",
+  };
+
+  const partMap = new Map<number, string>(); // partNumber -> partId
+
+  for (let pNum = 1; pNum <= 7; pNum++) {
+    const createdPart = await prisma.examPart.create({
+      data: {
+        examId: exam.id,
+        partNumber: pNum,
+        name: toeicPartNames[pNum] || `Part ${pNum}`,
+        sortOrder: pNum,
+      },
+    });
+    partMap.set(pNum, createdPart.id);
+  }
+
+  console.log("🧩 Created 7 ExamPart records for the exam.");
+
+  // ==========================================
+  // STEP 5: READ AND SEED PIPELINE JSON QUESTIONS
+  // ==========================================
+  if (!fs.existsSync(PIPELINE_DIR)) {
+    console.error(`❌ Directory ${PIPELINE_DIR} does not exist!`);
+    return;
+  }
+
+  const jsonFiles = fs
+    .readdirSync(PIPELINE_DIR)
+    .filter((file) => file.endsWith(".json") && file.startsWith("toeic_part_"))
+    .sort((a, b) => {
+      const matchA = a.match(/from_(\d+)_/);
+      const matchB = b.match(/from_(\d+)_/);
+      const numA = matchA ? parseInt(matchA[1], 10) : 0;
+      const numB = matchB ? parseInt(matchB[1], 10) : 0;
+      return numA - numB;
+    });
+
+  console.log(`📁 Found ${jsonFiles.length} JSON files to process.`);
 
   let overallSortOrder = 1;
+  const questionsToCreate: any[] = [];
+  const examQuestionsToCreate: any[] = [];
 
-  for (const target of targetFiles) {
-    const fullFilePath = path.join(PIPELINE_DIR, target.name);
+  for (const fileName of jsonFiles) {
+    const fullFilePath = path.join(PIPELINE_DIR, fileName);
+    const questionsData: QuestionJson[] = JSON.parse(
+      fs.readFileSync(fullFilePath, "utf-8"),
+    );
 
-    if (!fs.existsSync(fullFilePath)) {
-      console.log(`⚠️ Không tìm thấy file (Bỏ qua): ${target.name}`);
-      continue;
-    }
-
-    const questionsData = JSON.parse(fs.readFileSync(fullFilePath, "utf-8"));
     console.log(
-      `📦 Đang xử lý Part ${target.part} -> File: ${target.name} (${questionsData.length} câu)`,
+      `📦 Processing File: ${fileName} (${questionsData.length} questions)`,
     );
 
     for (const q of questionsData) {
       let imagePath: string | null = null;
       let audioPath: string | null = null;
 
-      // 1. Xử lý đường dẫn hình ảnh cho Part 1
       if (q.imagePrompt && q.imagePrompt.trim() !== "") {
         imagePath = `${CLOUDINARY_IMAGE_BASE}/${q.id}.jpg`;
       }
 
-      // 2. Chuyển đổi audioPath
       if (q.audioPath && q.audioPath.trim() !== "") {
         const rawFileName = path.basename(q.audioPath);
         const correctAudioFileName = rawFileName.replace(
-          "q-custom-",
+          /^q-custom-/,
           "q-custom-audio-",
         );
         audioPath = `${CLOUDINARY_AUDIO_BASE}/${correctAudioFileName}`;
       }
 
-      const newQuestion = await prisma.question.create({
-        data: {
-          id: q.id,
-          content:
-            q.content ||
-            `Nghe và chọn đáp án chính xác cho câu hỏi số ${overallSortOrder}`,
-          options: q.options,
-          right_answer: q.right_answer,
-          category: "TOEIC",
-          explanation:
-            q.explanation || "Chưa có lời giải chi tiết cho câu hỏi này.",
-          imagePath: imagePath,
-          audioPath: audioPath,
-          status: "ACTIVE",
-        },
+      const targetPartId = partMap.get(q.partNumber);
+      if (!targetPartId) {
+        console.warn(
+          `⚠️ Skipping question ${q.id}: No ExamPart found for part number ${q.partNumber}`,
+        );
+        continue;
+      }
+
+      questionsToCreate.push({
+        id: q.id,
+        content:
+          q.content ||
+          `Nghe và chọn đáp án chính xác cho câu hỏi số ${overallSortOrder}`,
+        options: q.options,
+        right_answer: q.right_answer,
+        category: "TOEIC",
+        explanation:
+          q.explanation || "Chưa có lời giải chi tiết cho câu hỏi này.",
+        imagePath,
+        audioPath,
+        status: "ACTIVE",
       });
 
-      await prisma.examQuestion.create({
-        data: {
-          examId: exam.id,
-          questionId: newQuestion.id,
-          sortOrder: overallSortOrder,
-          partNumber: target.part,
-        },
+      // Option A linkage: Uses partId instead of examId & partNumber
+      examQuestionsToCreate.push({
+        partId: targetPartId,
+        questionId: q.id,
+        sortOrder: overallSortOrder,
       });
 
       overallSortOrder++;
     }
+  }
+
+  // Bulk Insert
+  if (questionsToCreate.length > 0) {
+    console.log("🚀 Inserting questions and exam linkages into DB...");
+    await prisma.question.createMany({
+      data: questionsToCreate,
+      skipDuplicates: true,
+    });
+
+    await prisma.examQuestion.createMany({
+      data: examQuestionsToCreate,
+      skipDuplicates: true,
+    });
   }
 
   console.log(

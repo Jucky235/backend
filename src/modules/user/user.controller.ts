@@ -1,5 +1,5 @@
 import { type Response } from "express";
-import { AuthenticatedRequest } from "../../middleware/auth";
+import { type AuthenticatedRequest } from "../../middleware/auth";
 import { UserService } from "./user.service";
 
 export class UserController {
@@ -84,7 +84,11 @@ export class UserController {
     }
   }
 
-  async deleteUser(req: AuthenticatedRequest, res: Response) {
+  // 🟢 4. DELETE /api/users/:id - Xóa user theo ID
+  async deleteUser(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<Response> {
     try {
       const { id } = req.params;
       const deletedUser = await this.userService.deleteUser(id);
@@ -96,6 +100,49 @@ export class UserController {
     } catch (error: any) {
       return res.status(400).json({
         message: error.message || "Xóa user thất bại",
+      });
+    }
+  }
+
+  // 🟢 5. POST /api/users/messages - Gửi tin nhắn vào channel từ User đang đăng nhập
+  async sendMessage(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<Response> {
+    try {
+      const senderId = req.user?.id;
+      if (!senderId) {
+        return res.status(401).json({ error: "Unauthorized access" });
+      }
+
+      const { channelId, content, attachments } = req.body;
+
+      // Validate required inputs
+      if (!channelId || typeof channelId !== "string") {
+        return res.status(400).json({ error: "channelId là bắt buộc" });
+      }
+
+      if (!content || typeof content !== "string" || content.trim() === "") {
+        return res
+          .status(400)
+          .json({ error: "Nội dung tin nhắn không được để trống" });
+      }
+
+      const newMessage = await this.userService.sendMessage(
+        senderId,
+        channelId,
+        content,
+        attachments || [],
+      );
+
+      return res.status(201).json({
+        message: "Gửi tin nhắn thành công",
+        data: newMessage,
+      });
+    } catch (error: any) {
+      console.error("Error in sendMessage controller:", error);
+      return res.status(400).json({
+        error: error.message || "Gửi tin nhắn thất bại",
       });
     }
   }

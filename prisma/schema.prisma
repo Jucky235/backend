@@ -85,6 +85,11 @@ enum NewsCategory {
   FEATURED
 }
 
+enum ChannelStatus{
+  ACTIVE
+  ARCHIVED
+}
+
 // ==========================================
 // --- MODELS ---
 // ==========================================
@@ -111,6 +116,9 @@ model User {
   // Role relation
   roleId Int?
   role   Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  // Chat relation
+  chatMessages ChatMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -358,4 +366,45 @@ model NewsTagRelation {
 
   @@id([newsId, tagId])
   @@index([tagId])
+}
+
+// ==========================================
+// --- CHAT MODELS ---
+// ==========================================
+
+model ChatChannel {
+  id          String        @id @default(uuid())
+  name        String        @db.VarChar(100)
+  description String?       @db.Text
+  icon        String?       // Optional channel icon/emoji
+  status      ChannelStatus @default(ACTIVE)
+
+  messages    ChatMessage[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ChatMessage {
+  id        String      @id @default(uuid())
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  
+  senderId  String
+  sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content     String   @db.Text
+  attachments String[] // Array of file/image URLs
+
+  // Support for nested replies (Threading)
+  parentId  String?
+  parent    ChatMessage?  @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies   ChatMessage[] @relation("MessageReplies")
+
+  isEdited  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([channelId, createdAt])
+  @@index([senderId])
 }

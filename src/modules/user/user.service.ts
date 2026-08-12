@@ -131,4 +131,41 @@ export class UserService {
       select: safeUserSelect,
     });
   }
+  // 🟢 5. Gửi tin nhắn từ User
+  async sendMessage(
+    senderId: string,
+    channelId: string,
+    content: string,
+    attachments: string[] = [],
+  ) {
+    const channel = await prisma.chatChannel.findUnique({
+      where: { id: channelId },
+    });
+
+    if (!channel) {
+      throw new Error("Channel không tồn tại");
+    }
+
+    return await prisma.chatMessage.create({
+      data: {
+        senderId,
+        channelId,
+        content,
+        attachments,
+      },
+      select: {
+        id: true,
+        content: true,
+        attachments: true,
+        createdAt: true,
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
 }

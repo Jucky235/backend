@@ -90,6 +90,19 @@ enum ChannelStatus{
   ARCHIVED
 }
 
+// Forum
+enum PostStatus {
+  PUBLISHED
+  ARCHIVED
+  LOCKED
+  HIDDEN
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
 // ==========================================
 // --- MODELS ---
 // ==========================================
@@ -119,6 +132,13 @@ model User {
 
   // Chat relation
   chatMessages ChatMessage[]
+
+  //Forum relation
+  authoredPosts    ForumPost[]        @relation("PostAuthor")
+  authoredComments ForumComment[]     @relation("CommentAuthor")
+  postVotes        ForumPostVote[]
+  commentVotes     ForumCommentVote[]
+  savedPosts       SavedPost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -407,4 +427,137 @@ model ChatMessage {
 
   @@index([channelId, createdAt])
   @@index([senderId])
+}
+
+// ==========================================
+// --- FORUM MODELS ---
+// ==========================================
+
+model ForumCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  slug        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  icon        String?  // URL or icon identifier
+  isPrivate   Boolean  @default(false)
+
+  posts       ForumPost[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ForumPost {
+  id          String        @id @default(uuid())
+  title       String        @db.VarChar(255)
+  slug        String        @unique @db.VarChar(255)
+  content     String        @db.Text
+  attachments String[]      // Array of image/file URLs
+  status      PostStatus    @default(PUBLISHED)
+  
+  isPinned    Boolean       @default(false)
+  isLocked    Boolean       @default(false) // Prevents new comments
+
+  // Aggregated Counters for fast queries & ranking algorithms
+  viewsCount    Int         @default(0)
+  upvotesCount  Int         @default(0)
+  downvotesCount Int        @default(0)
+  commentsCount Int         @default(0)
+
+  // Relations
+  categoryId  String
+  category    ForumCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  authorId    String
+  author      User          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  comments    ForumComment[]
+  votes       ForumPostVote[]
+  savedBy     SavedPost[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([upvotesCount, createdAt]) // Helps with "Hot" / "Top" sorting queries
+}
+
+model ForumComment {
+  id          String     @id @default(uuid())
+  content     String     @db.Text
+  isEdited    Boolean    @default(false)
+  
+  // Counters for comment scoring
+  upvotesCount  Int      @default(0)
+  downvotesCount Int     @default(0)
+
+  // Relations
+  postId      String
+  post        ForumPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  authorId    String
+  author      User       @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Nested Threading (Parent-Child Comment relationship)
+  parentId    String?
+  parent      ForumComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     ForumComment[] @relation("CommentReplies")
+
+  votes       ForumCommentVote[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model ForumPostVote {
+  id        String   @id @default(uuid())
+  type      VoteType
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  postId    String
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, postId]) // A user can vote on a post only once
+  @@index([postId])
+}
+
+model ForumCommentVote {
+  id        String       @id @default(uuid())
+  type      VoteType
+
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  commentId String
+  comment   ForumComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, commentId]) // A user can vote on a comment only once
+  @@index([commentId])
+}
+
+model SavedPost {
+  id        String    @id @default(uuid())
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  postId    String
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId])
 }

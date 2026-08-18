@@ -1,17 +1,29 @@
 import { prisma } from "../../config/db";
-import { ExamCategory } from "@prisma/client";
+import { ExamCategory, QuestionStatus, Prisma } from "@prisma/client";
 
 export interface CreateQuestionInput {
   content: string;
   options: Record<string, string>; // e.g. { A: "...", B: "...", C: "...", D: "..." }
-  right_answer: "A" | "B" | "C" | "D";
+  right_answer: "A" | "B" | "C" | "D" | string;
   category?: ExamCategory;
   partNumber?: number;
   explanation?: string;
+  imagePath?: string;
+  audioPath?: string;
+  topicNumber?: number;
 }
 
 export interface UpdateQuestionInput extends Partial<CreateQuestionInput> {
-  status?: "ACTIVE" | "INACTIVE";
+  status?: QuestionStatus;
+}
+
+export interface GetQuestionsParams {
+  category?: string;
+  partNumber?: number;
+  status?: QuestionStatus;
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
 export class QuestionService {
@@ -26,6 +38,9 @@ export class QuestionService {
       category = ExamCategory.TOEIC,
       partNumber = 1,
       explanation = "",
+      imagePath,
+      audioPath,
+      topicNumber,
     } = data;
 
     if (!content || !options || !right_answer) {
@@ -35,12 +50,15 @@ export class QuestionService {
     return prisma.question.create({
       data: {
         content,
-        options,
+        options: options as unknown as Prisma.InputJsonValue,
         right_answer,
         category,
         partNumber,
         explanation,
-        status: "ACTIVE",
+        imagePath,
+        audioPath,
+        topicNumber,
+        status: QuestionStatus.ACTIVE,
       },
     });
   }
@@ -55,12 +73,15 @@ export class QuestionService {
 
     const payload = questions.map((q) => ({
       content: q.content,
-      options: q.options,
+      options: q.options as unknown as Prisma.InputJsonValue,
       right_answer: q.right_answer,
-      category: q.category || "TOEIC",
+      category: q.category || ExamCategory.TOEIC,
       partNumber: q.partNumber || 1,
       explanation: q.explanation || "",
-      status: "ACTIVE",
+      imagePath: q.imagePath,
+      audioPath: q.audioPath,
+      topicNumber: q.topicNumber,
+      status: QuestionStatus.ACTIVE,
     }));
 
     return prisma.question.createMany({
@@ -72,27 +93,21 @@ export class QuestionService {
   /**
    * Fetch all questions with optional filters and pagination
    */
-  async getAllQuestions(params?: {
-    category?: string;
-    partNumber?: number;
-    status?: "ACTIVE" | "INACTIVE";
-    search?: string;
-    page?: number;
-    limit?: number;
-  }) {
+  async getAllQuestions(params?: GetQuestionsParams) {
     const {
       category,
       partNumber,
-      status = "ACTIVE",
+      status = QuestionStatus.ACTIVE,
       search,
       page = 1,
       limit = 20,
     } = params || {};
 
-    const where: any = {};
+    const where: Prisma.QuestionWhereInput = {};
 
     if (status) where.status = status;
-    if (category && category !== "ALL") where.category = category;
+    if (category && category !== "ALL")
+      where.category = category as ExamCategory;
     if (partNumber) where.partNumber = Number(partNumber);
     if (search) {
       where.content = {
@@ -101,14 +116,16 @@ export class QuestionService {
       };
     }
 
-    const skip = (page - 1) * limit;
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 20;
+    const skip = (pageNum - 1) * limitNum;
 
     const [items, total] = await Promise.all([
       prisma.question.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: limit,
+        take: limitNum,
       }),
       prisma.question.count({ where }),
     ]);
@@ -116,18 +133,19 @@ export class QuestionService {
     return {
       items,
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
     };
   }
 
   /**
    * Get a single question by ID
    */
-  async getQuestionById(id: string) {
+  async getQuestionById(id: number) {
+    const numericId = Number(id);
     const question = await prisma.question.findUnique({
-      where: { id },
+      where: { id: numericId },
     });
 
     if (!question) {
@@ -140,16 +158,24 @@ export class QuestionService {
   /**
    * Update question content, options, or metadata
    */
-  async updateQuestion(id: string, data: UpdateQuestionInput) {
-    const existing = await prisma.question.findUnique({ where: { id } });
+  async updateQuestion(id: number, data: UpdateQuestionInput) {
+    const numericId = Number(id);
+    const existing = await prisma.question.findUnique({
+      where: { id: numericId },
+    });
     if (!existing) {
       throw new Error("Question not found.");
     }
 
+    const { options, ...restData } = data;
+
     return prisma.question.update({
-      where: { id },
+      where: { id: numericId },
       data: {
-        ...data,
+        ...restData,
+        ...(options && {
+          options: options as unknown as Prisma.InputJsonValue,
+        }),
       },
     });
   }
@@ -157,15 +183,18 @@ export class QuestionService {
   /**
    * Soft delete a question by setting its status to INACTIVE
    */
-  async deleteQuestion(id: string) {
-    const existing = await prisma.question.findUnique({ where: { id } });
+  async deleteQuestion(id: number) {
+    const numericId = Number(id);
+    const existing = await prisma.question.findUnique({
+      where: { id: numericId },
+    });
     if (!existing) {
       throw new Error("Question not found.");
     }
 
     return prisma.question.update({
-      where: { id },
-      data: { status: "INACTIVE" },
+      where: { id: numericId },
+      data: { status: QuestionStatus.INACTIVE },
     });
   }
 }

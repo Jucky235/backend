@@ -67,7 +67,7 @@ export class AuthService {
       {
         id: user.id,
         email: user.email,
-        roleId: user.roleId, // 👈 Đưa roleId vào token
+        roleName: user.role?.name, // 👈 Đưa roleId vào token
       },
       jwtSecret,
       { expiresIn: "1d" },

@@ -2,9 +2,9 @@ import { prisma } from "../../config/db";
 import { ExamStatus, ExamCategory, Prisma } from "@prisma/client";
 
 export interface CreateExamQuestionInput {
-  questionId: string;
+  questionId: number;
   sortOrder: number;
-  partNumber: number; // Links question to a specific part
+  partNumber: number;
 }
 
 export interface CreateExamPartInput {
@@ -21,19 +21,27 @@ export interface CreateExamInput {
   category: ExamCategory;
   status?: ExamStatus;
   durationMinutes?: number;
-  parts?: CreateExamPartInput[]; // Explicit user-defined parts
+  parts?: CreateExamPartInput[];
   questions?: CreateExamQuestionInput[];
 }
 
 export interface AddQuestionsToExamPayload {
-  questionId: string;
+  questionId: number;
   partNumber?: number;
   sortOrder?: number;
 }
 
 export interface AddQuestionsToExamInput {
-  examId: string;
+  examId: number;
   questions: AddQuestionsToExamPayload[];
+}
+
+export interface SaveExamHistoryInput {
+  userId: number;
+  examId: number;
+  answers: Record<number | string, string>;
+  startedAt: string | Date;
+  submittedAt: string | Date;
 }
 
 export class ExamService {
@@ -47,11 +55,17 @@ export class ExamService {
 
   // Fetch a specific exam with active questions flattened across all parts
   async getExamById(
-    id: string,
+    id: number | string,
     client: Prisma.TransactionClient | typeof prisma = prisma,
   ) {
+    const numericId = Number(id);
+
+    if (isNaN(numericId)) {
+      throw new Error("Invalid Exam ID format.");
+    }
+
     const exam = await client.exam.findUnique({
-      where: { id },
+      where: { id: numericId },
       include: {
         parts: {
           orderBy: { sortOrder: "asc" },
@@ -88,14 +102,14 @@ export class ExamService {
     return {
       ...examData,
       questions: activeQuestions,
-      parts, // Keep original parts metadata in payload
+      parts,
     };
   }
-
   // Create a new exam along with explicit user parts and question associations
   async createExam(data: CreateExamInput) {
     const {
       name,
+      code,
       description,
       category,
       status = "ACTIVE",
@@ -129,6 +143,8 @@ export class ExamService {
       const newExam = await tx.exam.create({
         data: {
           name,
+          code,
+          description,
           category,
           status,
           time: durationMinutes,
@@ -149,7 +165,6 @@ export class ExamService {
       const userPartNumbers = new Set(parts.map((p) => p.partNumber));
       const questionPartNumbers = Object.keys(questionsByPart).map(Number);
 
-      // Merge all distinct part numbers needed
       const allPartNumbers = Array.from(
         new Set([...userPartNumbers, ...questionPartNumbers]),
       ).sort((a, b) => a - b);
@@ -164,6 +179,7 @@ export class ExamService {
             examId: newExam.id,
             partNumber: partNumber,
             name: customPartConfig?.name || `Part ${partNumber}`,
+            description: customPartConfig?.description,
             sortOrder: customPartConfig?.sortOrder ?? partNumber,
             questions: {
               create: partQuestions.map((q) => ({
@@ -175,15 +191,11 @@ export class ExamService {
         });
       }
 
-      // Fetch complete created exam structure
       return this.getExamById(newExam.id, tx);
     });
   }
 
-  /**
-   * Add new questions to an existing exam.
-   * Auto-creates ExamPart if the targeted partNumber does not exist yet.
-   */
+  // Add new questions to an existing exam
   async addQuestionsToExam(data: AddQuestionsToExamInput) {
     const { examId, questions } = data;
 
@@ -191,9 +203,17 @@ export class ExamService {
       throw new Error("No questions provided to add.");
     }
 
+    // Parse examId to Int for Prisma querying
+    const parsedExamId =
+      typeof examId === "string" ? parseInt(examId, 10) : examId;
+
+    if (isNaN(parsedExamId)) {
+      throw new Error("Invalid Exam ID provided.");
+    }
+
     // 1. Verify existence of the exam and fetch existing parts
     const exam = await prisma.exam.findUnique({
-      where: { id: examId },
+      where: { id: parsedExamId },
       include: {
         parts: {
           include: {
@@ -229,7 +249,6 @@ export class ExamService {
 
     // 3. Process addition within a transaction
     return prisma.$transaction(async (tx) => {
-      // Group incoming questions by part number
       const questionsByPart = questions.reduce<
         Record<number, AddQuestionsToExamPayload[]>
       >((acc, q) => {
@@ -244,7 +263,6 @@ export class ExamService {
       )) {
         const partNumber = Number(partNumStr);
 
-        // Find existing part or auto-create one
         let targetPart = exam.parts.find((p) => p.partNumber === partNumber);
 
         if (!targetPart) {
@@ -261,24 +279,20 @@ export class ExamService {
           });
         }
 
-        // Fetch current questions for accuracy within transaction scope
         const currentPartQuestions = await tx.examQuestion.findMany({
           where: { partId: targetPart.id },
           select: { questionId: true, sortOrder: true },
         });
 
-        // Set of question IDs currently in this specific part
         const existingQuestionIdsInPart = new Set(
           currentPartQuestions.map((eq) => eq.questionId),
         );
 
-        // Filter out questions already present in this part
         const newQuestionsForPart = targetQuestions.filter(
           (q) => !existingQuestionIdsInPart.has(q.questionId),
         );
 
         if (newQuestionsForPart.length > 0) {
-          // Calculate max sortOrder using actual saved sort orders
           const maxSortOrder =
             currentPartQuestions.length > 0
               ? Math.max(...currentPartQuestions.map((q) => q.sortOrder ?? 0))
@@ -286,7 +300,7 @@ export class ExamService {
 
           await tx.examQuestion.createMany({
             data: newQuestionsForPart.map((q, index) => ({
-              partId: targetPart.id, // Correct key matching schema relation
+              partId: targetPart.id,
               questionId: q.questionId,
               sortOrder: q.sortOrder ?? maxSortOrder + index + 1,
             })),
@@ -295,21 +309,15 @@ export class ExamService {
         }
       }
 
-      // Return updated complete exam object
       return this.getExamById(exam.id, tx);
     });
   }
-
   // Save student attempt history and freeze snapshot
-  async saveExamHistory(data: {
-    userId: string;
-    examId: string;
-    answers: Record<string, string>;
-    startedAt: string;
-    submittedAt: string;
-  }) {
+  async saveExamHistory(data: SaveExamHistoryInput) {
+    const { userId, examId, answers, startedAt, submittedAt } = data;
+
     const exam = await prisma.exam.findUnique({
-      where: { id: data.examId },
+      where: { id: examId },
       include: {
         parts: {
           include: {
@@ -334,46 +342,45 @@ export class ExamService {
 
     const totalQuestions = activeQuestions.length;
     let correctQuestions = 0;
-    const historyAnswersSnapshot: any[] = [];
 
-    activeQuestions.forEach((eq) => {
+    const historyAnswersSnapshot = activeQuestions.map((eq) => {
       const q = eq.question;
-      const userAnswer = data.answers[q.id] || "";
+      const userAnswer = answers[q.id] || "";
       const isCorrect = userAnswer === q.right_answer;
 
       if (isCorrect) correctQuestions++;
 
-      historyAnswersSnapshot.push({
+      return {
         questionId: q.id,
         content: q.content,
         options: q.options,
         right_answer: q.right_answer,
-        userAnswer: userAnswer,
-        isCorrect: isCorrect,
+        userAnswer,
+        isCorrect,
         explanation: q.explanation,
         sortOrder: eq.sortOrder,
         partNumber: eq.partNumber,
-      });
+      };
     });
 
     const score = correctQuestions;
     const isPassed = totalQuestions > 0 ? score / totalQuestions >= 0.5 : false;
 
-    const start = new Date(data.startedAt).getTime();
-    const end = new Date(data.submittedAt).getTime();
+    const start = new Date(startedAt).getTime();
+    const end = new Date(submittedAt).getTime();
     const timeTakenSeconds = Math.max(0, Math.floor((end - start) / 1000));
 
     return prisma.examHistory.create({
       data: {
-        userId: data.userId,
-        examId: data.examId,
+        userId,
+        examId,
         score,
         totalQuestions,
         correctQuestions,
         isPassed,
-        answers: historyAnswersSnapshot,
-        startedAt: new Date(data.startedAt),
-        submittedAt: new Date(data.submittedAt),
+        answers: historyAnswersSnapshot as unknown as Prisma.InputJsonValue,
+        startedAt: new Date(startedAt),
+        submittedAt: new Date(submittedAt),
         timeTakenSeconds,
       },
     });

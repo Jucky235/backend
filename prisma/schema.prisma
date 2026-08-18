@@ -149,7 +149,7 @@ model User {
 // ==========================================
 
 model Exam {
-  id        String        @id @default(uuid())
+  id        Int      @id @default(autoincrement())
   name      String
   category  ExamCategory
   time      Int // Duration in minutes or seconds
@@ -162,7 +162,7 @@ model Exam {
 
 model ExamPart {
   id           String         @id @default(uuid())
-  examId       String
+  examId       Int 
   exam         Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
   partNumber   Int // e.g. 1, 2, 3...
   name         String // e.g. "Part 1: Photographs", "Part 2: Question-Response"
@@ -179,7 +179,7 @@ model ExamPart {
 }
 
 model Question {
-  id             String         @id @default(uuid())
+  id             Int       @id @default(autoincrement())
   content        String         @db.Text
   options        Json // Structured JSON for answer choices
   right_answer   String
@@ -200,7 +200,7 @@ model Question {
 model ExamQuestion {
   partId     String
   part       ExamPart @relation(fields: [partId], references: [id], onDelete: Cascade)
-  questionId String
+  questionId Int 
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   // Position sequence within this specific Part
@@ -214,7 +214,7 @@ model ExamHistory {
   id               String   @id @default(uuid())
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  examId           String
+  examId           Int 
   exam             Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   score            Int
   totalQuestions   Int

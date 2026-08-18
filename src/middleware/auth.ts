@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 export interface JwtPayload {
   id: string;
   email: string;
-  roleId: string;
+  roleName: string;
 }
 
 // Mở rộng Request của Express

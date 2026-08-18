@@ -19,7 +19,7 @@ const CLOUDINARY_AUDIO_BASE =
 const PIPELINE_DIR = path.resolve("../toeicPipeline");
 
 interface QuestionJson {
-  id: string;
+  id?: string; // Original pipeline string identifier (if any)
   content?: string;
   options: Record<string, string>;
   right_answer: string;
@@ -134,7 +134,7 @@ async function main() {
   );
 
   // ==========================================
-  // STEP 4: SEED EXAM & EXAM PARTS (Option A Schema)
+  // STEP 4: SEED EXAM & EXAM PARTS
   // ==========================================
   const exam = await prisma.exam.create({
     data: {
@@ -145,7 +145,6 @@ async function main() {
     },
   });
 
-  // Create standard TOEIC Parts 1 through 7 for this exam
   const toeicPartNames: Record<number, string> = {
     1: "Part 1: Photographs",
     2: "Part 2: Question-Response",
@@ -170,7 +169,7 @@ async function main() {
     partMap.set(pNum, createdPart.id);
   }
 
-  console.log("🧩 Created 7 ExamPart records for the exam.");
+  console.log(`🧩 Created 7 ExamPart records for Exam ID: ${exam.id}.`);
 
   // ==========================================
   // STEP 5: READ AND SEED PIPELINE JSON QUESTIONS
@@ -194,8 +193,11 @@ async function main() {
   console.log(`📁 Found ${jsonFiles.length} JSON files to process.`);
 
   let overallSortOrder = 1;
-  const questionsToCreate: any[] = [];
-  const examQuestionsToCreate: any[] = [];
+  const examQuestionsToCreate: {
+    partId: string;
+    questionId: number;
+    sortOrder: number;
+  }[] = [];
 
   for (const fileName of jsonFiles) {
     const fullFilePath = path.join(PIPELINE_DIR, fileName);
@@ -227,30 +229,32 @@ async function main() {
       const targetPartId = partMap.get(q.partNumber);
       if (!targetPartId) {
         console.warn(
-          `⚠️ Skipping question ${q.id}: No ExamPart found for part number ${q.partNumber}`,
+          `⚠️ Skipping question: No ExamPart found for part number ${q.partNumber}`,
         );
         continue;
       }
 
-      questionsToCreate.push({
-        id: q.id,
-        content:
-          q.content ||
-          `Nghe và chọn đáp án chính xác cho câu hỏi số ${overallSortOrder}`,
-        options: q.options,
-        right_answer: q.right_answer,
-        category: "TOEIC",
-        explanation:
-          q.explanation || "Chưa có lời giải chi tiết cho câu hỏi này.",
-        imagePath,
-        audioPath,
-        status: "ACTIVE",
+      // Create Question record and allow PostgreSQL autoincrement to generate the integer primary key
+      const createdQuestion = await prisma.question.create({
+        data: {
+          content:
+            q.content ||
+            `Nghe và chọn đáp án chính xác cho câu hỏi số ${overallSortOrder}`,
+          options: q.options,
+          right_answer: q.right_answer,
+          category: "TOEIC",
+          partNumber: q.partNumber,
+          explanation:
+            q.explanation || "Chưa có lời giải chi tiết cho câu hỏi này.",
+          imagePath,
+          audioPath,
+          status: "ACTIVE",
+        },
       });
 
-      // Option A linkage: Uses partId instead of examId & partNumber
       examQuestionsToCreate.push({
         partId: targetPartId,
-        questionId: q.id,
+        questionId: createdQuestion.id, // Primary key is now integer
         sortOrder: overallSortOrder,
       });
 
@@ -258,14 +262,9 @@ async function main() {
     }
   }
 
-  // Bulk Insert
-  if (questionsToCreate.length > 0) {
-    console.log("🚀 Inserting questions and exam linkages into DB...");
-    await prisma.question.createMany({
-      data: questionsToCreate,
-      skipDuplicates: true,
-    });
-
+  // Link Questions to Exam Parts
+  if (examQuestionsToCreate.length > 0) {
+    console.log("🚀 Inserting exam linkages into DB...");
     await prisma.examQuestion.createMany({
       data: examQuestionsToCreate,
       skipDuplicates: true,

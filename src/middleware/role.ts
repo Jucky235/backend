@@ -14,7 +14,7 @@ export const requireAdmin = (
 
   console.log(user);
   // Now user.role directly holds "ADMIN"
-  if (user.roleId != "1") {
+  if (user.roleName != "ADMIN") {
     return res
       .status(403)
       .json({ message: "Forbidden: Admin access required" });

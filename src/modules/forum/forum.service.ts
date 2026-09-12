@@ -44,7 +44,6 @@ const safePostSelect = {
   viewsCount: true,
   upvotesCount: true,
   downvotesCount: true,
-  commentsCount: true,
   createdAt: true,
   updatedAt: true,
   category: {
@@ -59,6 +58,11 @@ const safePostSelect = {
       id: true,
       name: true,
       email: true,
+    },
+  },
+  _count: {
+    select: {
+      comments: true,
     },
   },
 };
@@ -125,8 +129,14 @@ export class ForumService {
       prisma.forumPost.count({ where: whereCondition }),
     ]);
 
+    // Map `_count.comments` thành `commentsCount` để đồng bộ UI
+    const formattedPosts = posts.map((post) => ({
+      ...post,
+      commentsCount: post._count.comments,
+    }));
+
     return {
-      data: posts,
+      data: formattedPosts,
       pagination: {
         page,
         limit,
@@ -203,6 +213,7 @@ export class ForumService {
 
     return {
       ...post,
+      commentsCount: post._count.comments, // Trả về con số chính xác từ DB
       currentUserVote,
     };
   }
@@ -217,7 +228,7 @@ export class ForumService {
       throw new Error("Category không tồn tại");
     }
 
-    return await prisma.forumPost.create({
+    const createdPost = await prisma.forumPost.create({
       data: {
         title: data.title,
         slug: data.slug,
@@ -228,6 +239,11 @@ export class ForumService {
       },
       select: safePostSelect,
     });
+
+    return {
+      ...createdPost,
+      commentsCount: createdPost._count.comments,
+    };
   }
 
   // 🟢 5. Upvote / Downvote Bài Viết (Xử lý Transaction & đếm tự động)
@@ -246,7 +262,7 @@ export class ForumService {
       },
     });
 
-    return await prisma.$transaction(async (tx) => {
+    const updatedPost = await prisma.$transaction(async (tx) => {
       // Trường hợp 1: Hủy vote khi bấm lại nút cũ
       if (existingVote && existingVote.type === input.type) {
         await tx.forumPostVote.delete({
@@ -300,6 +316,11 @@ export class ForumService {
         select: safePostSelect,
       });
     });
+
+    return {
+      ...updatedPost,
+      commentsCount: updatedPost._count.comments,
+    };
   }
 
   // 🟢 6. Thêm Comment / Reply bài viết
@@ -325,35 +346,27 @@ export class ForumService {
       }
     }
 
-    return await prisma.$transaction(async (tx) => {
-      const comment = await tx.forumComment.create({
-        data: {
-          content: data.content,
-          postId: data.postId,
-          authorId,
-          parentId: data.parentId || null,
-        },
-        select: {
-          id: true,
-          content: true,
-          createdAt: true,
-          parentId: true,
-          author: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
+    // Không cần dùng transaction increment manual nữa
+    return await prisma.forumComment.create({
+      data: {
+        content: data.content,
+        postId: data.postId,
+        authorId,
+        parentId: data.parentId || null,
+      },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        parentId: true,
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
           },
         },
-      });
-
-      await tx.forumPost.update({
-        where: { id: data.postId },
-        data: { commentsCount: { increment: 1 } },
-      });
-
-      return comment;
+      },
     });
   }
 
@@ -400,9 +413,14 @@ export class ForumService {
       throw new Error("Bạn không có quyền xóa bài viết này");
     }
 
-    return await prisma.forumPost.delete({
+    const deletedPost = await prisma.forumPost.delete({
       where: { id },
       select: safePostSelect,
     });
+
+    return {
+      ...deletedPost,
+      commentsCount: deletedPost._count.comments,
+    };
   }
 }

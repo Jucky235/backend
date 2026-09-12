@@ -195,6 +195,7 @@ model Question {
   lastEditedBy   Json?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  skills QuestionSkill[]
 }
 
 model ExamQuestion {
@@ -462,7 +463,6 @@ model ForumPost {
   viewsCount    Int         @default(0)
   upvotesCount  Int         @default(0)
   downvotesCount Int        @default(0)
-  commentsCount Int         @default(0)
 
   // Relations
   categoryId  String
@@ -561,3 +561,35 @@ model SavedPost {
   @@unique([userId, postId])
   @@index([userId])
 }
+
+model Skill {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  description String?  @db.Text
+  category    ExamCategory
+
+  parentId    Int?
+  parent      Skill?    @relation("SkillHierarchy", fields: [parentId], references: [id])
+  children    Skill[]  @relation("SkillHierarchy")
+
+  questions   QuestionSkill[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([category])
+  @@index([parentId])
+}
+
+model QuestionSkill {
+  questionId Int
+  skillId    Int
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, skillId])
+  @@index([skillId])
+}
+

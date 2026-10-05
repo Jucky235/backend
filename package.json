@@ -13,7 +13,6 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "packageManager": "npm@11.12.1",
   "engines": {
     "node": "22.x"
   },

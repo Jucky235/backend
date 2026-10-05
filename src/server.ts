@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import authRoutes from "./modules/auth/auth.routes";
 import userRoutes from "./modules/user/user.routes";
 import examRoutes from "./modules/exam/exam.routes";
@@ -15,6 +16,10 @@ import navigationRoutes from "./modules/navigation/navigation.routes";
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+app.use(cors({
+  origin: true,
+  credentials: true,
+}));
 app.use(express.json());
 
 app.get("/health", (_req, res) => {

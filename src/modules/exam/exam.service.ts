@@ -316,8 +316,10 @@ export class ExamService {
   async saveExamHistory(data: SaveExamHistoryInput) {
     const { userId, examId, answers, startedAt, submittedAt } = data;
 
+    const numericExamId = Number(examId);
+
     const exam = await prisma.exam.findUnique({
-      where: { id: examId },
+      where: { id: numericExamId },
       include: {
         parts: {
           include: {
@@ -373,7 +375,7 @@ export class ExamService {
     return prisma.examHistory.create({
       data: {
         userId,
-        examId,
+        examId: numericExamId,
         score,
         totalQuestions,
         correctQuestions,
@@ -384,5 +386,41 @@ export class ExamService {
         timeTakenSeconds,
       },
     });
+  }
+
+  async getTodayDailyExam() {
+    // Generate ISO date string (YYYY-MM-DD) in local server time zone
+    const todayStr = new Date().toLocaleDateString("en-CA"); // Formats as YYYY-MM-DD
+    const targetExamName = `Daily TOEIC Test - ${todayStr}`;
+
+    // 1. Try finding today's specific daily exam
+    let dailyExam = await prisma.exam.findFirst({
+      where: {
+        OR: [{ name: { contains: todayStr } }, { name: targetExamName }],
+        status: ExamStatus.ACTIVE,
+      },
+    });
+
+    // 2. Fallback: If today's exam hasn't been auto-generated, return the latest active DAILY/TOEIC exam
+    if (!dailyExam) {
+      dailyExam = await prisma.exam.findFirst({
+        where: {
+          category: ExamCategory.TOEIC,
+          status: ExamStatus.ACTIVE,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    }
+
+    // 3. Throw explicit, catchable error if database has no active exams
+    if (!dailyExam) {
+      const error = new Error("No active daily exam available.");
+      (error as any).statusCode = 404;
+      throw error;
+    }
+
+    return dailyExam;
   }
 }

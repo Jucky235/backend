@@ -179,4 +179,23 @@ export class ExamController {
       });
     }
   }
+
+  async getDailyExam(req: Request, res: Response) {
+    try {
+      // getTodayDailyExam() already returns the full exam object directly from Prisma
+      const exam = await examService.getTodayDailyExam();
+      return res.status(200).json(exam);
+    } catch (error: any) {
+      if (
+        error.statusCode === 404 ||
+        error.message?.includes("No active daily exam")
+      ) {
+        return res.status(404).json({ message: error.message });
+      }
+      return res.status(500).json({
+        message:
+          error.message || "Đã xảy ra lỗi hệ thống khi lấy bài thi hàng ngày.",
+      });
+    }
+  }
 }

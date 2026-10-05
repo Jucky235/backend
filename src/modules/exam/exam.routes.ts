@@ -1,3 +1,4 @@
+// exam.router.ts
 import { Router } from "express";
 import { ExamController } from "./exam.controller";
 import { authenticateJWT } from "../../middleware/auth";
@@ -5,25 +6,22 @@ import { authenticateJWT } from "../../middleware/auth";
 const router = Router();
 const examController = new ExamController();
 
-// GET /api/exams - Get list of active tests
-router.get("/", examController.getAll);
+// 1. All base/static endpoints FIRST
+router.get("/", (req, res) => examController.getAll(req, res));
+router.get("/daily", (req, res) => examController.getDailyExam(req, res));
 
-// GET /api/exams/:id - Get specific test with questions
-router.get("/:id", examController.getById);
+// 2. Dynamic parameterized endpoint AFTER static strings
+router.get("/:id", (req, res) => examController.getById(req, res));
 
-// POST /api/exams - Create a new exam
+// POST routes
 router.post("/", authenticateJWT, (req, res) =>
   examController.create(req, res),
 );
-
-// POST /api/exams/:id/questions - Add questions to an existing exam
-router.post("/:id/questions", authenticateJWT, (req, res) =>
-  examController.addQuestions(req, res),
-);
-
-// POST /api/exams/submit - Submit exam results
 router.post("/submit", authenticateJWT, (req, res) =>
   examController.submitExam(req, res),
+);
+router.post("/:id/questions", authenticateJWT, (req, res) =>
+  examController.addQuestions(req, res),
 );
 
 export default router;

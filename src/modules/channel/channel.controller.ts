@@ -1,10 +1,12 @@
-import { type Response } from "express";
+import { type Request, type Response } from "express";
 import { type AuthenticatedRequest } from "../../middleware/auth";
 import { ChannelService } from "./channel.service";
+import { ChannelSummaryService } from "./ai/channel-summary.service";
 import { ChannelStatus } from "@prisma/client";
 
 export class ChannelController {
   private channelService = new ChannelService();
+  private summaryService = new ChannelSummaryService();
 
   // 🟢 1. GET /api/channels - Lấy danh sách tất cả Channels
   async getAllChannels(
@@ -85,6 +87,29 @@ export class ChannelController {
       console.error("Error in getMessagesByChannelId controller:", error);
       return res.status(400).json({
         error: error.message || "Không thể lấy danh sách tin nhắn",
+      });
+    }
+  }
+
+  // 🟢 4. GET /api/channels/:id/summary - Tóm tắt cuộc trò chuyện bằng AI
+  async summarizeChannel(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<Response> {
+    try {
+      const { id } = req.params;
+      const limit = req.query.limit ? Number(req.query.limit) : 50;
+
+      if (!id) {
+        return res.status(400).json({ error: "Channel ID là bắt buộc" });
+      }
+
+      const result = await this.summaryService.generateSummary(id, limit);
+      return res.status(200).json({ data: result });
+    } catch (error: any) {
+      console.error("Error in summarizeChannel controller:", error);
+      return res.status(400).json({
+        error: error.message || "Không thể tóm tắt nội dung channel",
       });
     }
   }

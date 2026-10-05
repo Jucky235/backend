@@ -112,7 +112,7 @@ export class ChannelService {
         where: { channelId },
         skip,
         take: limit,
-        orderBy: { createdAt: "asc" }, // Sắp xếp theo thứ tự thời gian từ cũ đến mới để render chat stream
+        orderBy: { createdAt: "desc" }, // Sắp xếp theo thứ tự thời gian từ cũ đến mới để render chat stream
         select: {
           id: true,
           channelId: true,
@@ -131,7 +131,7 @@ export class ChannelService {
     ]);
 
     return {
-      data: messages,
+      data: messages.reverse(),
       pagination: {
         page,
         limit,
@@ -139,5 +139,48 @@ export class ChannelService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async getLatestMessagesForSummary(channelId: string, limit = 50) {
+    const channel = await prisma.chatChannel.findUnique({
+      where: { id: channelId },
+      select: { id: true, name: true, description: true },
+    });
+
+    if (!channel) throw new Error("Channel không tồn tại");
+
+    const rawMessages = await prisma.chatMessage.findMany({
+      where: { channelId },
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            role: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const messages = rawMessages.reverse();
+
+    const formattedPromptContent = messages
+      .map((msg) => {
+        const name = msg.sender?.name || "Unknown";
+        const role = msg.sender?.role?.name ? `(${msg.sender.role.name})` : "";
+        const time = new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        return `[${time}] ${name}${role}: ${msg.content}`;
+      })
+      .join("\n");
+
+    return { channel, messages, formattedPromptContent };
   }
 }

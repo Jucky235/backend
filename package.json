@@ -22,12 +22,13 @@
     "bcrypt": "^6.0.0",
     "date-fns": "^4.4.0",
     "express": "^5.2.1",
+    "groq-sdk": "^1.6.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.22.0",
     "trino-client": "^0.2.9",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.6.0",

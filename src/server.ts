@@ -8,6 +8,9 @@ import questionRoutes from "./modules/questions/question.routes";
 import channelRoutes from "./modules/channel/channel.routes";
 import forumRoutes from "./modules/forum/forum.routes";
 import analyticsRoutes from "./modules/analytics/analytics.routes";
+import dailyTestRoutes from "./modules/daily-test/daily-test.routes";
+import roadmapRoutes from "./modules/roadmap/roadmap.routes";
+import navigationRoutes from "./modules/navigation/navigation.routes";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,6 +27,9 @@ app.use("/api/questions", questionRoutes);
 app.use("/api/channels", channelRoutes);
 app.use("/api/forum", forumRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/daily-test", dailyTestRoutes);
+app.use("/api/roadmap", roadmapRoutes);
+app.use("/api/navigation", navigationRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Modular server running on http://localhost:${PORT}`);

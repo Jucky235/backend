@@ -13,9 +13,13 @@ import roadmapRoutes from "./modules/roadmap/roadmap.routes";
 import navigationRoutes from "./modules/navigation/navigation.routes";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 // Mount Modular Endpoints
 app.use("/api/auth", authRoutes);
@@ -31,6 +35,6 @@ app.use("/api/daily-test", dailyTestRoutes);
 app.use("/api/roadmap", roadmapRoutes);
 app.use("/api/navigation", navigationRoutes);
 
-app.listen(PORT, () => {
-  console.log(`🚀 Modular server running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Modular server running on port ${PORT}`);
 });

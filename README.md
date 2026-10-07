@@ -1,89 +1,167 @@
-English Learning Website - Backend
+# English Learning Platform — Backend
 
-This is the backend repository for the English Learning Platform, providing a robust RESTful API built with Node.js, Express.js, and TypeScript to power authentication, data management, and business logic.
+A robust RESTful backend API for the English Learning Platform, providing authentication, data management, business logic, and API services for the web application.
 
-🚀 Links & Resources
+The backend is built with **Node.js, Express.js, TypeScript, PostgreSQL, and Prisma ORM** and serves as the main data and business-logic layer for the platform.
 
-Backend Repository: https://github.com/Jucky235/backend
+---
 
-Frontend Repository: https://github.com/Jucky235/frontend
+## 🌐 Links & Resources
 
-Live Frontend App: https://frontend-b6gp.onrender.com/
+- ⚙️ **Backend Repository:** https://github.com/Jucky235/backend
+- 💻 **Frontend Repository:** https://github.com/Jucky235/frontend
+- 🚀 **Live Application:** https://frontend-b6gp.onrender.com/
 
-🛠️ Tech Stack & Architecture
+---
 
-Runtime Environment: Node.js (v22.x)
+## ✨ Features
 
-Framework: Express.js
+### 🔐 Authentication & Authorization
 
-Language: TypeScript (compiled with tsx)
+Secure authentication and user management.
 
-Database & ORM: PostgreSQL, Prisma ORM
+- User registration
+- User login
+- Password hashing with bcrypt
+- JWT-based authentication
+- Protected API routes
+- User authorization
+- Role-based access control
 
-Authentication & Security: JSON Web Tokens (JWT), bcrypt, cors
+### 📚 Flashcards
 
-Utilities & Tools: date-fns, groq-sdk, nodemon
+Backend services for vocabulary learning and flashcard management.
 
-Testing & Seeding: @faker-js/faker
+- Flashcard decks
+- Flashcard creation and management
+- Vocabulary organization
+- Learning progress
+- Flashcard review history
 
-✨ Features & Architecture
+### 📝 Exams
 
-Authentication System: Secure user registration and login using hashed passwords (bcrypt) and token-based authentication (jsonwebtoken).
+API services for English exams and assessments.
 
-RESTful API Endpoints: Structured endpoints supporting flashcards, exams, news, chat, community forums, and administration modules.
+- Exam management
+- Exam categories
+- Exam parts
+- Questions and answers
+- Exam attempts
+- Score calculation
+- Accuracy tracking
+- Learning performance data
 
-Database Management: Efficient querying, schema migration, and relational data management handled via Prisma ORM and PostgreSQL.
+### 📰 News
 
-Development & Seeding: Hot-reloading development setup with nodemon and tsx, plus mock data generation using @faker-js/faker.
+API endpoints for managing educational and English-learning content.
 
-⚙️ Getting Started
+- News articles
+- Article management
+- Content retrieval
+- Administrative content management
 
-Follow these instructions to set up and run the backend server locally on your machine.
+### 💬 Community Chat
 
-Prerequisites
+Backend services supporting community communication.
 
-Node.js (v22.x or compatible version) installed on your system.
+- Chat rooms
+- Messages
+- Message history
+- User interactions
+- Community activity
 
-PostgreSQL database instance running locally or hosted.
+### 💭 Forum
 
-npm, yarn, or pnpm package manager.
+A community discussion system for English learners.
 
-Installation & Setup
+- Forum categories
+- Posts
+- Comments
+- Voting
+- Saved posts
+- Community interactions
 
-Clone the repository:
+### 👤 User Management
 
-git clone https://github.com/Jucky235/backend.git
-cd backend
+User and account management functionality.
 
+- User profiles
+- Account information
+- Authentication providers
+- User roles
+- Permissions
+- User activity
 
-Install dependencies:
+### 🛠️ Administration
 
-npm install
+Administrative APIs for managing the platform.
 
+- User management
+- Content management
+- Exam management
+- Flashcard management
+- News management
+- Forum management
+- System resources
 
-Configure environment variables:
-Create a .env file in the root directory and configure your environment variables:
+---
 
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
-JWT_SECRET="your_jwt_secret_key"
-PORT=5000
+## 🧰 Tech Stack
 
+| Technology | Purpose |
+|---|---|
+| Node.js | Runtime environment |
+| Express.js | REST API framework |
+| TypeScript | Primary programming language |
+| PostgreSQL | Relational database |
+| Prisma | ORM and database access |
+| JSON Web Token | Authentication |
+| bcrypt | Password hashing |
+| CORS | Cross-origin request handling |
+| date-fns | Date and time utilities |
+| Groq SDK | AI-related services |
+| Nodemon | Development hot reloading |
+| tsx | TypeScript execution |
+| Faker.js | Mock data generation and seeding |
 
-Run database migrations:
+---
 
-npx prisma migrate dev
+## 🏗️ Architecture
 
+The backend follows a RESTful client-server architecture:
 
-Run the development server:
-
-npm run dev
-
-
-Server Status:
-The server will start and monitor for changes using nodemon and tsx.
-
-👨‍💻 Author
-
-Truong Quoc Vuong
-
-GitHub: @Jucky235
+```text
+┌─────────────────────────────────┐
+│          React Frontend         │
+│                                 │
+│  TypeScript                     │
+│  Redux Toolkit / RTK Query      │
+│  React Hook Form                │
+└───────────────┬─────────────────┘
+                │
+                │ HTTP / REST API
+                ▼
+┌─────────────────────────────────┐
+│         Express.js API          │
+│                                 │
+│  Routes                         │
+│  Controllers                    │
+│  Services                       │
+│  Authentication                 │
+│  Business Logic                 │
+└───────────────┬─────────────────┘
+                │
+                │ Prisma ORM
+                ▼
+┌─────────────────────────────────┐
+│           PostgreSQL            │
+│                                 │
+│  Users                          │
+│  Exams                          │
+│  Questions                      │
+│  Flashcards                     │
+│  Forums                         │
+│  Chat                           │
+│  News                           │
+│  ...                            │
+└─────────────────────────────────┘

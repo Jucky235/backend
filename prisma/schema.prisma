@@ -129,6 +129,7 @@ model User {
   provider      AuthProvider  @default(EMAIL)
   refreshTokens String[]
   examHistories ExamHistory[]
+  avatarUrl     String?
 
   // Flashcard System Creator Mapping
   createdDecks Deck[]      @relation("DeckCreator")

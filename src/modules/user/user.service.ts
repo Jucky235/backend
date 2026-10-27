@@ -2,42 +2,39 @@ import { Gender } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { prisma } from "../../config/db";
 
-// Interface cập nhật thông tin user (đồng bộ với Schema)
 export interface UpdateUserInfoInput {
   name?: string;
   phoneNumber?: string;
   gender?: Gender;
   password?: string;
+  avatar?: string;
 }
 
-// Interface tham số phân trang & tìm kiếm
 export interface GetAllUsersParams {
   page?: number;
   limit?: number;
   search?: string;
 }
 
-// Struct SELECT dùng chung để tránh lặp code
 const safeUserSelect = {
   id: true,
   email: true,
   name: true,
   phoneNumber: true,
   gender: true,
+  avatarUrl: true,
   provider: true,
   createdAt: true,
   updatedAt: true,
 };
 
 export class UserService {
-  // 🟢 1. Lấy danh sách Users (Có phân trang, search & không dùng Prisma namespace)
   async getAllUsers(params?: GetAllUsersParams) {
     const page = Math.max(1, params?.page || 1);
     const limit = Math.max(1, params?.limit || 10);
     const skip = (page - 1) * limit;
     const search = params?.search?.trim();
 
-    // Tự dựng object where thuần TypeScript, thêm "as const" cho mode "insensitive"
     const whereCondition = search
       ? {
           OR: [
@@ -77,9 +74,8 @@ export class UserService {
     };
   }
 
-  // 🟢 2. Lấy thông tin 1 User theo ID
   async getUserById(id: string) {
-    return await prisma.user.findUnique({
+    const userInfo = await prisma.user.findUnique({
       where: { id },
       select: {
         ...safeUserSelect,
@@ -92,9 +88,16 @@ export class UserService {
         },
       },
     });
+
+    const Examhistory = await prisma.examHistory.findMany({
+      where: { userId: id },
+    });
+    return {
+      userInfo,
+      Examhistory,
+    };
   }
 
-  // 🟢 3. Cập nhật thông tin User
   async updateUserInfo(id: string, data: UpdateUserInfoInput) {
     const updateData: Record<string, any> = {};
 
@@ -102,6 +105,9 @@ export class UserService {
     if (data.phoneNumber !== undefined)
       updateData.phoneNumber = data.phoneNumber;
     if (data.gender !== undefined) updateData.gender = data.gender;
+
+    // 🟢 Map the incoming avatar string to Prisma's avatarUrl column
+    if (data.avatar !== undefined) updateData.avatarUrl = data.avatar;
 
     if (data.password !== undefined) {
       const saltRounds = 10;
@@ -115,9 +121,7 @@ export class UserService {
     });
   }
 
-  // 🟢 4. Xóa User theo ID
   async deleteUser(id: string) {
-    // Kiểm tra sự tồn tại của User trước khi xóa
     const existingUser = await prisma.user.findUnique({
       where: { id },
     });
@@ -131,7 +135,7 @@ export class UserService {
       select: safeUserSelect,
     });
   }
-  // 🟢 5. Gửi tin nhắn từ User
+
   async sendMessage(
     senderId: string,
     channelId: string,

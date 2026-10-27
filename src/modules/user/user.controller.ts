@@ -52,20 +52,21 @@ export class UserController {
     }
   }
 
-  // 🟢 3. PUT /api/users/me - Cập nhật thông tin cá nhân
+  // 🟢 3. PUT /api/users/me - Cập nhật thông tin cá nhân (Bao gồm Avatar)
   async updateMe(req: AuthenticatedRequest, res: Response): Promise<Response> {
     try {
       if (!req.user?.id) {
         return res.status(401).json({ error: "Unauthorized access" });
       }
 
-      const { name, phoneNumber, gender, password } = req.body;
+      const { name, phoneNumber, gender, password, avatar } = req.body;
 
       if (
         name === undefined &&
         phoneNumber === undefined &&
         gender === undefined &&
-        password === undefined
+        password === undefined &&
+        avatar === undefined
       ) {
         return res.status(400).json({ error: "No fields provided for update" });
       }
@@ -75,6 +76,7 @@ export class UserController {
         phoneNumber,
         gender,
         password,
+        avatar,
       });
 
       return res.status(200).json(updatedUser);
@@ -144,6 +146,36 @@ export class UserController {
       return res.status(400).json({
         error: error.message || "Gửi tin nhắn thất bại",
       });
+    }
+  }
+
+  // 🟢 6. Optional dedicated method if you want a separate route just for avatar
+  async updateAvatar(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<Response> {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized access" });
+      }
+
+      const { avatar } = req.body;
+
+      if (!avatar || typeof avatar !== "string") {
+        return res.status(400).json({ error: "Avatar URL is required" });
+      }
+
+      const updatedUser = await this.userService.updateUserInfo(req.user.id, {
+        avatar,
+      });
+
+      return res.status(200).json({
+        message: "Cập nhật avatar thành công",
+        data: updatedUser,
+      });
+    } catch (error: any) {
+      console.error("Error in updateAvatar controller:", error);
+      return res.status(500).json({ error: "Internal server error" });
     }
   }
 }

@@ -67,7 +67,7 @@ export class AuthService {
       {
         id: user.id,
         email: user.email,
-        roleName: user.role?.name, // 👈 Đưa roleId vào token
+        roleName: user.role?.name,
       },
       jwtSecret,
       { expiresIn: "1d" },
@@ -79,7 +79,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role, // 👈 Trả về cả thông tin Role cho Client
+        role: user.role,
       },
     };
   }

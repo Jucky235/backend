@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { ExamService } from "./exam.service";
 import { type AuthenticatedRequest } from "../../middleware/auth";
+import { Param } from "@prisma/client/runtime/client";
 
 const examService = new ExamService();
 

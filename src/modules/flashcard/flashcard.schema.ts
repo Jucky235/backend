@@ -11,6 +11,53 @@ export const createDeckSchema = z.object({
   }),
 });
 
+export const createDeckByImportCSVSchema = z.object({
+  body: z
+    .object({
+      name: z.string().optional(),
+      deckName: z.string().optional(),
+      title: z.string().optional(),
+      description: z.string().optional().nullable(),
+      category: z.string().optional(),
+      visibility: z.string().optional(),
+      csv: z.string().optional(),
+      csvData: z.string().optional(),
+      data: z.string().optional(),
+      cards: z
+        .array(
+          z
+            .object({
+              frontContent: z.string().optional(),
+              backContent: z.string().optional(),
+              front: z.string().optional(),
+              back: z.string().optional(),
+              question: z.string().optional(),
+              answer: z.string().optional(),
+              explanation: z.string().optional().nullable(),
+              imagePath: z.string().optional().nullable(),
+              audioPath: z.string().optional().nullable(),
+              partNumber: z.number().optional().nullable(),
+            })
+            .passthrough(),
+        )
+        .optional(),
+    })
+    .passthrough()
+    .refine(
+      (body) =>
+        !!body.name ||
+        !!body.deckName ||
+        !!body.title ||
+        !!body.csv ||
+        !!body.csvData ||
+        !!body.data ||
+        (Array.isArray(body.cards) && body.cards.length > 0),
+      {
+        message: "Deck name or CSV card payload is required.",
+      },
+    ),
+});
+
 export const createCardSchema = z.object({
   params: z.object({
     deckId: z.string().uuid("Invalid deck ID format"),
@@ -44,9 +91,7 @@ export const reviewCardSchema = z.object({
   }),
   body: z.object({
     rating: z.nativeEnum(FSRSRating, {
-      errorMap: () => ({
-        message: "Rating must be 1 (AGAIN), 2 (HARD), 3 (GOOD), or 4 (EASY)",
-      }),
+      message: "Rating must be 1 (AGAIN), 2 (HARD), 3 (GOOD), or 4 (EASY)",
     }),
   }),
 });

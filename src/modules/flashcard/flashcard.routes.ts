@@ -15,11 +15,20 @@ router.post("/decks", authenticateJWT, (req, res) =>
   flashcardController.createDeck(req, res),
 );
 
+// POST /decks/import-csv -> creates a deck and cards from CSV-like payload
+router.post("/decks/import-csv", authenticateJWT, (req, res) =>
+  flashcardController.createDeckByImportCSV(req, res),
+);
+
 // POST /decks/:deckId/cards -> creates a new flashcard in a deck
 router.post("/decks/:deckId/cards", authenticateJWT, (req, res) =>
   flashcardController.createCardToDeck(req, res),
 );
 
+//GET /decks/public
+router.get("/decks/public", (req, res) =>
+  flashcardController.getAllPublicDeck(res),
+);
 // GET /decks/:deckId -> fetches single deck by ID
 router.get("/decks/:deckId", authenticateJWT, (req, res) =>
   flashcardController.getDeckById(req, res),

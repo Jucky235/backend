@@ -214,6 +214,13 @@ model Question {
   skills QuestionSkill[]
 }
 
+model Word {
+  id          String   @id @default(uuid())
+  word        String
+  definition  String   @db.Text
+  numberOfTimeSearch  Int      @default(1)
+}
+
 model ExamQuestion {
   partId     String
   part       ExamPart @relation(fields: [partId], references: [id], onDelete: Cascade)
@@ -280,7 +287,7 @@ model Flashcard {
   explanation  String?   @db.Text
   imagePath    String?
   audioPath    String?
-  partNumber   Int? // Optional segment context (e.g. TOEIC context rules)
+  partNumber   Int? 
 
   status DeckStatus @default(ACTIVE)
 

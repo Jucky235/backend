@@ -12,6 +12,7 @@ import analyticsRoutes from "./modules/analytics/analytics.routes";
 import dailyTestRoutes from "./modules/daily-test/daily-test.routes";
 import roadmapRoutes from "./modules/roadmap/roadmap.routes";
 import navigationRoutes from "./modules/navigation/navigation.routes";
+import dictionaryRoutes from "./modules/dictionary/dictionary.routes";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -39,6 +40,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/daily-test", dailyTestRoutes);
 app.use("/api/roadmap", roadmapRoutes);
 app.use("/api/navigation", navigationRoutes);
+app.use("/api/dictionary", dictionaryRoutes);
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Modular server running on port ${PORT}`);

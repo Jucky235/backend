@@ -5,6 +5,10 @@ import { DictionaryController } from "./dictionary.controller";
 const router = Router();
 const dictionaryController = new DictionaryController();
 
+router.get("/", authenticateJWT, (req, res) =>
+  dictionaryController.getAllWords(req, res),
+);
+
 router.post("/", authenticateJWT, (req, res) =>
   dictionaryController.createWord(req, res),
 );

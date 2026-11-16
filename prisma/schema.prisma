@@ -152,6 +152,7 @@ model User {
   postVotes        ForumPostVote[]
   commentVotes     ForumCommentVote[]
   savedPosts       SavedPost[]
+  newsLikes        NewsLike[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -382,15 +383,29 @@ model News {
   thumbnail   String?
   category    NewsCategory      @default(GENERAL)
   status      NewsStatus        @default(DRAFT)
+  likesCount  Int               @default(0)
   viewsCount  Int               @default(0)
   authorName  String?           @default("Admin")
   tags        NewsTagRelation[]
+  likes       NewsLike[]
 
   publishedAt DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   @@index([status, publishedAt])
+}
+
+model NewsLike {
+  id        String   @id @default(uuid())
+  newsId    String
+  news      News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([newsId, userId])
+  @@index([userId])
 }
 
 model NewsTag {

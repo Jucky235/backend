@@ -399,6 +399,47 @@ export class ForumService {
     return { saved: true };
   }
 
+  // Return the current user's saved posts, newest saves first.
+  async getSavedPosts(userId: string, page = 1, limit = 10) {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.max(1, Math.min(100, Math.floor(limit)))
+      : 10;
+    const skip = (safePage - 1) * safeLimit;
+    const where = {
+      userId,
+      post: { status: PostStatus.PUBLISHED },
+    };
+
+    const [savedPosts, total] = await Promise.all([
+      prisma.savedPost.findMany({
+        where,
+        skip,
+        take: safeLimit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          createdAt: true,
+          post: { select: safePostSelect },
+        },
+      }),
+      prisma.savedPost.count({ where }),
+    ]);
+
+    return {
+      data: savedPosts.map(({ createdAt, post }) => ({
+        ...post,
+        savedAt: createdAt,
+        commentsCount: post._count.comments,
+      })),
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages: Math.ceil(total / safeLimit),
+      },
+    };
+  }
+
   // 🟢 8. Xóa bài viết
   async deletePost(id: string, currentUserId: string) {
     const existingPost = await prisma.forumPost.findUnique({

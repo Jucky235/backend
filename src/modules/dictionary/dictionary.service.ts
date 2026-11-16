@@ -6,6 +6,12 @@ export interface CreateWordInput {
 }
 
 export class DictionaryService {
+  async getAllWords() {
+    return prisma.word.findMany({
+      orderBy: { word: "asc" },
+    });
+  }
+
   async createOrIncrementWord(data: CreateWordInput) {
     const existingWord = await prisma.word.findFirst({
       where: { word: data.word },

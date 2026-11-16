@@ -4,6 +4,18 @@ import { DictionaryService } from "./dictionary.service";
 const dictionaryService = new DictionaryService();
 
 export class DictionaryController {
+  /** GET /api/dictionary - Get all words. */
+  async getAllWords(_req: Request, res: Response) {
+    try {
+      const words = await dictionaryService.getAllWords();
+      return res.status(200).json(words);
+    } catch (error: any) {
+      return res.status(500).json({
+        message: error.message || "Failed to get dictionary words.",
+      });
+    }
+  }
+
   /** POST /api/dictionary - Insert a word into the dictionary. */
   async createWord(req: Request, res: Response) {
     try {

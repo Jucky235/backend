@@ -15,6 +15,11 @@ router.get("/categories", (req, res) => controller.getAllCategories(req, res));
 // Lấy danh sách bài viết (Có phân trang, search, filter category & sort)
 router.get("/posts", (req, res) => controller.getAllPosts(req, res));
 
+// Lấy danh sách bài viết đã lưu của người dùng hiện tại
+router.get("/posts/saved", authenticateJWT, (req, res) =>
+  controller.getSavedPosts(req, res),
+);
+
 // Lấy chi tiết 1 bài viết kèm bình luận (Truyền token nếu muốn lấy trạng thái vote của user)
 router.get("/posts/:id", (req, res) => controller.getPostById(req, res));
 

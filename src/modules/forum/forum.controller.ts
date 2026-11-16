@@ -224,6 +224,30 @@ export class ForumController {
     }
   }
 
+  // GET /api/forum/posts/saved - Lấy danh sách bài viết đã lưu
+  async getSavedPosts(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<Response> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized access" });
+      }
+
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : 10;
+      const result = await this.forumService.getSavedPosts(userId, page, limit);
+
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error("Error in getSavedPosts controller:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
   // 🟢 8. DELETE /api/forum/posts/:id - Xóa bài viết theo ID
   async deletePost(
     req: AuthenticatedRequest,

@@ -7,8 +7,14 @@ const router = Router();
 const controller = new NewController();
 
 router.get("/", authenticateJWT, (req, res) => controller.getAllNews(req, res));
+router.get("/liked", authenticateJWT, (req, res) =>
+  controller.getLikedNews(req, res),
+);
 router.get("/:id", authenticateJWT, (req, res) =>
   controller.getNewsById(req, res),
+);
+router.post("/:id/like", authenticateJWT, (req, res) =>
+  controller.likeNews(req, res),
 );
 router.post("/", authenticateJWT, requireAdmin, (req, res) =>
   controller.createNew(req, res),

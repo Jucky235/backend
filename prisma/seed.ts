@@ -108,81 +108,33 @@ const TOEIC_PART_NAMES: Record<number, string> = {
 };
 
 const FORUM_CATEGORY_NAMES = [
-  "TOEIC Discussion",
-  "IELTS Discussion",
-  "English Grammar",
-  "Vocabulary",
-  "Listening Practice",
-  "Reading Practice",
-  "Study Tips",
-  "Exam Experience",
-  "General English",
-  "Community",
+  "Thảo luận TOEIC",
+  "Thảo luận IELTS",
+  "Ngữ pháp tiếng Anh",
+  "Từ vựng",
+  "Luyện nghe",
+  "Luyện đọc",
+  "Kinh nghiệm học tập",
+  "Trải nghiệm thi",
+  "Tiếng Anh giao tiếp",
+  "Cộng đồng",
 ];
 
 const CHAT_CHANNEL_NAMES = [
-  "General English",
-  "TOEIC Study",
-  "IELTS Study",
-  "Vocabulary",
-  "Grammar",
-  "Listening",
-  "Reading",
-  "Speaking",
-  "Study Together",
-  "Daily English",
-  "Exam Preparation",
-  "Beginner English",
-  "Advanced English",
-  "Study Motivation",
-  "Questions & Answers",
-  "Off Topic",
-  "English Challenges",
-  "Tips & Tricks",
-  "Language Exchange",
-  "Community Lounge",
+  "Tiếng Anh mỗi ngày", "Ôn TOEIC", "Ôn IELTS", "Từ vựng", "Ngữ pháp",
+  "Luyện nghe", "Luyện đọc", "Luyện nói", "Cùng học nhé", "Tiếng Anh giao tiếp",
+  "Chuẩn bị đi thi", "Mới bắt đầu", "Trình độ nâng cao", "Tạo động lực",
+  "Hỏi đáp", "Tán gẫu", "Thử thách tiếng Anh", "Mẹo học hay", "Trao đổi ngôn ngữ", "Góc cộng đồng",
 ];
 
 const NEWS_TAG_NAMES = [
-  "TOEIC",
-  "IELTS",
-  "Grammar",
-  "Vocabulary",
-  "Listening",
-  "Reading",
-  "Speaking",
-  "Study Tips",
-  "Exam Tips",
-  "English Learning",
-  "Announcement",
-  "Updates",
-  "Community",
-  "Practice",
-  "Beginner",
-  "Intermediate",
-  "Advanced",
-  "Education",
-  "Learning",
-  "Featured",
-  "Tips",
-  "Resources",
-  "Testing",
-  "Preparation",
-  "Daily English",
-  "Challenge",
-  "Vocabulary Builder",
-  "Grammar Tips",
-  "Listening Tips",
-  "Reading Tips",
-  "TOEIC Part 1",
-  "TOEIC Part 2",
-  "TOEIC Part 3",
-  "TOEIC Part 4",
-  "TOEIC Part 5",
-  "TOEIC Part 6",
-  "TOEIC Part 7",
-  "News",
-  "Platform",
+  "TOEIC", "IELTS", "Ngữ pháp", "Từ vựng", "Luyện nghe", "Luyện đọc",
+  "Luyện nói", "Mẹo học tập", "Kinh nghiệm thi", "Học tiếng Anh", "Thông báo",
+  "Cập nhật", "Cộng đồng", "Thực hành", "Mới bắt đầu", "Trung cấp", "Nâng cao",
+  "Giáo dục", "Học tập", "Nổi bật", "Mẹo hay", "Tài liệu", "Thi cử", "Chuẩn bị thi",
+  "Tiếng Anh mỗi ngày", "Thử thách", "Mở rộng từ vựng", "Mẹo ngữ pháp", "Mẹo luyện nghe",
+  "Mẹo luyện đọc", "TOEIC Phần 1", "TOEIC Phần 2", "TOEIC Phần 3", "TOEIC Phần 4",
+  "TOEIC Phần 5", "TOEIC Phần 6", "TOEIC Phần 7", "Tin tức", "Nền tảng",
 ];
 
 // ============================================================
@@ -192,6 +144,70 @@ const NEWS_TAG_NAMES = [
 function randomElement<T>(items: T[]): T {
   return items[faker.number.int({ min: 0, max: items.length - 1 })];
 }
+
+function pick<T>(items: T[]): T {
+  return randomElement(items);
+}
+
+const FORUM_POSTS = [
+  { title: "Mất gốc nghe TOEIC thì nên bắt đầu từ đâu?", content: "Mình đang ôn TOEIC nhưng phần nghe gần như không bắt được ý. Mọi người thường luyện Part 1, 2 trước hay nghe hội thoại Part 3 luôn vậy? Nếu có lịch học dễ theo thì chia sẻ giúp mình với nhé." },
+  { title: "Chia sẻ cách mình học từ vựng mà không nhanh quên", content: "Trước đây mình hay chép một danh sách dài rồi vài hôm sau quên gần hết. Gần đây mình học khoảng 10 từ mỗi ngày, tự đặt câu với từ mới và ôn lại sau 1, 3 rồi 7 ngày. Cách này hơi chậm nhưng nhớ lâu hơn. Mọi người có mẹo nào khác không?" },
+  { title: "Thi thử lần đầu được 650, nên tập trung phần nào?", content: "Mình vừa làm bài thi thử và được 650 điểm. Part 5 sai khá nhiều, còn phần nghe thì mất tập trung ở đoạn hội thoại dài. Mục tiêu của mình là 750 trong ba tháng tới. Anh chị đã từng ở mức này có thể gợi ý thứ tự ôn tập không?" },
+  { title: "Phân biệt giúp mình hiện tại hoàn thành và quá khứ đơn", content: "Mình hiểu là quá khứ đơn thường nói về việc đã kết thúc, còn hiện tại hoàn thành có liên hệ với hiện tại. Nhưng khi làm bài, đôi lúc không có mốc thời gian rõ ràng nên mình vẫn chọn nhầm. Có cách nào nhận biết nhanh qua ngữ cảnh không ạ?" },
+  { title: "Tìm bạn học tiếng Anh buổi tối", content: "Mình thường rảnh khoảng 9 giờ tối các ngày trong tuần và muốn tìm một bạn cùng luyện nói 20–30 phút. Trình độ của mình khoảng A2–B1, chủ đề đơn giản như công việc, đồ ăn hay du lịch là được. Bạn nào muốn học cùng thì comment nhé!" },
+  { title: "Luyện shadowing thế nào để không bị nản?", content: "Mình đang thử phương pháp shadowing nhưng cứ nghe câu dài là bị hụt hơi và phát âm không kịp. Mọi người thường chọn đoạn ngắn bao lâu, và có nên xem transcript ngay từ đầu không? Mình muốn tìm cách luyện đều mỗi ngày." },
+  { title: "Kinh nghiệm chọn lịch thi IELTS lần đầu", content: "Mình dự định thi IELTS trong khoảng hai tháng nữa. Có nên đặt lịch thi trước để có động lực học không, hay chờ đến khi điểm thi thử ổn định rồi mới đăng ký? Mình hơi lo phần Speaking nên cũng muốn hỏi mọi người chuẩn bị trước ngày thi thế nào." },
+  { title: "Một mẹo nhỏ giúp mình đỡ sợ Part 7", content: "Trước đây mình đọc từng câu từ đầu đến cuối nên thường không kịp giờ. Bây giờ mình đọc câu hỏi trước, gạch từ khóa rồi quay lại tìm thông tin trong bài. Tốc độ có cải thiện một chút. Nếu ai có cách quản lý thời gian tốt hơn thì cho mình xin kinh nghiệm nhé." },
+  { title: "Mọi người ghi chú từ mới bằng app hay sổ tay?", content: "Mình đang phân vân giữa dùng ứng dụng flashcard và ghi từ mới vào sổ. App tiện ôn lại, còn viết tay thì mình thấy nhớ lâu hơn. Có bạn nào kết hợp cả hai không? Chia sẻ cách mọi người đang làm với." },
+  { title: "Cuối tuần này cùng luyện đề nhé", content: "Mình định sáng Chủ nhật làm một đề TOEIC đủ thời gian, sau đó dành khoảng một tiếng chữa câu sai. Ai muốn tham gia thì mình có thể gửi đề và cùng trao đổi đáp án ở đây. Không cần điểm cao, quan trọng là duy trì thói quen." },
+];
+
+const FORUM_COMMENTS = [
+  "Mình cũng từng gặp tình trạng này. Chia nhỏ mục tiêu mỗi ngày sẽ dễ duy trì hơn đó.",
+  "Bạn thử nghe lại đoạn đó ở tốc độ bình thường sau khi đã xem transcript nhé, mình thấy khá hiệu quả.",
+  "Cảm ơn bạn chia sẻ, mình sẽ thử áp dụng vào buổi học tối nay.",
+  "Theo kinh nghiệm của mình thì nên làm bài ngắn trước, quen nhịp rồi hãy tăng độ khó.",
+  "Mình đồng ý. Quan trọng là chữa kỹ câu sai chứ làm nhiều đề mà không xem lại thì hơi phí.",
+  "Bạn có thể cho mình xin tên tài liệu đang dùng không? Mình cũng đang tìm tài liệu phù hợp.",
+  "Nếu chưa chắc thì bạn thử làm một bài kiểm tra trình độ trước để biết phần nào cần ưu tiên nhé.",
+  "Mình thường học khoảng 25 phút rồi nghỉ 5 phút, tập trung tốt hơn hẳn.",
+  "Chúc bạn ôn tập thuận lợi nha, mục tiêu đó hoàn toàn có thể đạt được nếu học đều.",
+  "Mình bổ sung thêm là nên ghi lại lỗi hay mắc để cuối tuần xem lại một lượt.",
+];
+
+const CHAT_MESSAGES = [
+  "Chào mọi người, hôm nay mọi người đang ôn phần nào vậy?",
+  "Mình vừa làm xong một đề nghe, Part 3 vẫn hơi khó theo kịp.",
+  "Bạn thử đọc câu hỏi trước khi nghe nhé, mình thấy đỡ bị rối hơn.",
+  "Cảm ơn nha, tối nay mình sẽ thử cách đó.",
+  "Mọi người có tài liệu luyện phát âm dễ bắt đầu không ạ?",
+  "Mình hay dùng đoạn hội thoại ngắn trên YouTube rồi nhại lại từng câu.",
+  "Hôm nay học được 10 từ mới, cố gắng giữ streak thôi 😄",
+  "Có ai muốn cùng làm đề vào sáng thứ Bảy không?",
+  "Mình tham gia nhé, khoảng 9 giờ được không?",
+  "Được đó, mình sẽ chuẩn bị một đề và gửi mọi người.",
+  "Câu này mình chọn B nhưng đáp án lại là D, có bạn giải thích giúp mình không?",
+  "Bạn gửi thêm ngữ cảnh với ảnh câu hỏi được không?",
+  "Nghe podcast lúc đi xe buýt cũng là cách luyện khá ổn đó.",
+  "Mình vừa thử rồi, tốc độ hơi nhanh nhưng chủ đề thú vị thật.",
+  "Chúc cả nhà học tốt nhé, mình quay lại làm bài đây!",
+  "Không sao đâu, sai câu nào mình ghi lại câu đó rồi ôn sau sẽ nhớ lâu hơn.",
+  "Tuần này mọi người đặt mục tiêu học bao nhiêu buổi?",
+  "Mình đặt mục tiêu 5 buổi, mỗi buổi chỉ cần nửa tiếng thôi.",
+  "Cho mình hỏi mẹo phân biệt since với for với ạ?",
+  "Since đi với mốc thời gian, còn for đi với khoảng thời gian bạn nhé.",
+];
+
+const NEWS_ARTICLES = [
+  { title: "Cập nhật lịch thi TOEIC và những điều cần chuẩn bị", summary: "Một số lưu ý giúp thí sinh chủ động hơn khi đăng ký lịch thi và chuẩn bị giấy tờ cần thiết.", content: "Trước ngày thi, thí sinh nên kiểm tra kỹ thông tin đăng ký, địa điểm và thời gian có mặt. Hãy chuẩn bị giấy tờ tùy thân đúng yêu cầu, ngủ đủ giấc và đến sớm để tránh cập rập.\n\nTrong quá trình ôn tập, nên làm đề có bấm giờ để quen với nhịp bài thi. Sau mỗi lần luyện, hãy dành thời gian xem lại câu sai và ghi chú những dạng câu thường gây nhầm lẫn." },
+  { title: "Gợi ý xây dựng thói quen học tiếng Anh mỗi ngày", summary: "Một lịch học ngắn và đều đặn thường dễ duy trì hơn những buổi học kéo dài nhưng thất thường.", content: "Người học có thể bắt đầu bằng một mục tiêu vừa sức, chẳng hạn 15 phút nghe và 10 phút ôn từ mới mỗi ngày. Khi thói quen đã ổn định, hãy tăng dần thời lượng hoặc bổ sung kỹ năng còn yếu.\n\nViệc ghi lại tiến độ theo tuần giúp bạn nhìn thấy sự cải thiện và điều chỉnh kế hoạch phù hợp. Đừng quá lo nếu có ngày học chưa tốt; hãy quay lại lịch học ở ngày tiếp theo." },
+  { title: "Mẹo đọc nhanh hơn trong phần Reading", summary: "Đọc câu hỏi trước và xác định từ khóa giúp bạn tìm thông tin hiệu quả hơn trong bài đọc dài.", content: "Ở những bài đọc dài, thí sinh không nhất thiết phải dịch từng câu ngay từ đầu. Hãy xem câu hỏi, gạch chân tên riêng, con số hoặc cụm từ quan trọng, sau đó tìm đoạn có thông tin liên quan.\n\nSau khi xác định được vị trí, đọc kỹ phần xung quanh để tránh chọn đáp án chỉ vì thấy từ giống nhau. Luyện tập thường xuyên với thời gian giới hạn sẽ giúp cải thiện tốc độ mà vẫn giữ độ chính xác." },
+  { title: "Cách ôn từ vựng để nhớ lâu và dùng được trong câu", summary: "Học từ mới trong ngữ cảnh và ôn lại theo khoảng thời gian giúp tăng khả năng ghi nhớ.", content: "Thay vì chỉ ghi nghĩa tiếng Việt, hãy học thêm cách phát âm, từ loại và một câu ví dụ ngắn. Khi gặp từ trong bài đọc hoặc bài nghe, bạn sẽ dễ nhận ra cách từ đó được sử dụng hơn.\n\nCó thể ôn lại từ mới sau một ngày, vài ngày rồi một tuần. Nếu vẫn thường xuyên quên, hãy thử tự đặt một câu liên quan đến công việc hoặc cuộc sống hàng ngày." },
+  { title: "Luyện nghe tiếng Anh: bắt đầu từ đoạn ngắn", summary: "Nghe chủ động với đoạn hội thoại vừa sức giúp người học nhận ra từ nối và cách phát âm tự nhiên.", content: "Người mới luyện nghe có thể chọn đoạn hội thoại từ một đến hai phút. Lượt đầu nghe để nắm ý chung, lượt sau ghi lại những cụm từ nghe được, rồi kiểm tra với phụ đề hoặc transcript.\n\nSau khi hiểu nội dung, hãy nghe lại và chú ý cách người nói nối âm, nhấn trọng âm. Không cần hiểu mọi từ ngay lập tức; việc nghe đều đặn sẽ giúp tai quen dần với tốc độ tự nhiên." },
+  { title: "Thông báo: cộng đồng mở buổi học nhóm trực tuyến", summary: "Thành viên có thể cùng luyện đề, trao đổi câu hỏi và chia sẻ cách học trong buổi sinh hoạt cuối tuần.", content: "Cộng đồng sẽ tổ chức buổi học nhóm trực tuyến vào sáng thứ Bảy tuần này. Nội dung gồm một phần luyện đề ngắn và thời gian cùng chữa những câu còn chưa rõ.\n\nThành viên tham gia có thể chuẩn bị sẵn giấy bút và ghi lại câu hỏi muốn trao đổi. Buổi học phù hợp với nhiều trình độ; mọi người cùng học trong tinh thần thoải mái và hỗ trợ lẫn nhau." },
+  { title: "Chuẩn bị cho phần Speaking với câu trả lời mạch lạc", summary: "Một câu trả lời rõ ý, có ví dụ cụ thể thường hiệu quả hơn việc cố dùng thật nhiều từ khó.", content: "Khi luyện Speaking, hãy thử trả lời theo ba bước: nêu ý chính, giải thích lý do và đưa ra một ví dụ ngắn. Cấu trúc đơn giản giúp câu trả lời mạch lạc và hạn chế việc dừng quá lâu để tìm ý.\n\nBạn có thể ghi âm phần nói của mình rồi nghe lại để phát hiện lỗi phát âm hoặc chỗ diễn đạt chưa tự nhiên. Luyện tập với nhiều chủ đề quen thuộc sẽ giúp bạn tự tin hơn." },
+  { title: "Sử dụng bài thi thử để theo dõi tiến độ học tập", summary: "Kết quả thi thử hữu ích nhất khi đi kèm với việc phân tích lỗi và điều chỉnh kế hoạch ôn tập.", content: "Một bài thi thử giúp bạn làm quen với thời gian và nhận ra kỹ năng nào cần cải thiện. Sau khi hoàn thành, hãy phân loại câu sai theo nguyên nhân như thiếu từ vựng, đọc nhầm câu hỏi hay mất tập trung khi nghe.\n\nDựa vào đó, bạn có thể dành thêm thời gian cho phần yếu thay vì chỉ tiếp tục làm đề mới. Nên so sánh kết quả theo từng giai đoạn để theo dõi tiến bộ thực tế." },
+];
 
 function randomInt(min: number, max: number): number {
   return faker.number.int({ min, max });
@@ -1473,7 +1489,7 @@ async function seedForumCategories() {
   ).map((name, index) => ({
     name,
     slug: uniqueSlug(name, index),
-    description: `Discussion area for ${name}.`,
+    description: `Nơi mọi người cùng trao đổi về ${name.toLowerCase()} và chia sẻ kinh nghiệm học tập.`,
     icon: "💬",
     isPrivate: false,
   }));
@@ -1505,10 +1521,8 @@ async function seedForumPosts(categories: any[], users: any[]) {
 
     const author = randomElement(users);
 
-    const title = faker.lorem.sentence({
-      min: 4,
-      max: 10,
-    });
+    const sample = pick(FORUM_POSTS);
+    const title = sample.title;
 
     const upvotes = randomInt(0, 100);
     const downvotes = randomInt(0, 20);
@@ -1516,10 +1530,7 @@ async function seedForumPosts(categories: any[], users: any[]) {
     return {
       title,
       slug: uniqueSlug(title, index),
-      content: faker.lorem.paragraphs({
-        min: 1,
-        max: 4,
-      }),
+      content: sample.content,
       attachments: [],
       status: randomElement([
         PostStatus.PUBLISHED,
@@ -1572,7 +1583,7 @@ async function seedForumComments(posts: any[], users: any[]) {
     const author = randomElement(users);
 
     commentsData.push({
-      content: faker.lorem.paragraph(randomInt(1, 3)),
+      content: pick(FORUM_COMMENTS),
       isEdited: randomBoolean(0.1),
       upvotesCount: randomInt(0, 30),
       downvotesCount: randomInt(0, 5),
@@ -1610,7 +1621,7 @@ async function seedForumComments(posts: any[], users: any[]) {
     const author = randomElement(users);
 
     replyData.push({
-      content: faker.lorem.paragraph(randomInt(1, 2)),
+      content: pick(FORUM_COMMENTS),
       isEdited: randomBoolean(0.05),
       upvotesCount: randomInt(0, 20),
       downvotesCount: randomInt(0, 3),
@@ -1766,7 +1777,7 @@ async function seedChatChannels() {
   const channelsData = CHAT_CHANNEL_NAMES.slice(0, CONFIG.chatChannels).map(
     (name) => ({
       name,
-      description: `Chat channel for ${name}.`,
+      description: `Cùng trò chuyện, hỏi đáp và chia sẻ về ${name.toLowerCase()}.`,
       icon: "💬",
       status: ChannelStatus.ACTIVE,
     }),
@@ -1803,10 +1814,7 @@ async function seedChatMessages(channels: any[], users: any[]) {
     return {
       channelId: channel.id,
       senderId: sender.id,
-      content: faker.lorem.sentence({
-        min: 3,
-        max: 15,
-      }),
+      content: pick(CHAT_MESSAGES),
       attachments: [],
       parentId: null,
       isEdited: randomBoolean(0.08),
@@ -1844,7 +1852,7 @@ async function seedChatMessages(channels: any[], users: any[]) {
     replies.push({
       channelId: parent.channelId,
       senderId: sender.id,
-      content: faker.lorem.sentence(),
+      content: pick(CHAT_MESSAGES),
       attachments: [],
       parentId: parent.id,
       isEdited: randomBoolean(0.05),
@@ -1904,10 +1912,8 @@ async function seedNews() {
   console.log(`📰 Creating ${CONFIG.news} news articles...`);
 
   const newsData = Array.from({ length: CONFIG.news }, (_, index) => {
-    const title = faker.lorem.sentence({
-      min: 5,
-      max: 12,
-    });
+    const article = NEWS_ARTICLES[index % NEWS_ARTICLES.length];
+    const title = article.title;
 
     const status = randomElement([
       NewsStatus.PUBLISHED,
@@ -1922,11 +1928,8 @@ async function seedNews() {
     return {
       title,
       slug: uniqueSlug(title, index),
-      summary: faker.lorem.paragraph(),
-      content: faker.lorem.paragraphs({
-        min: 2,
-        max: 6,
-      }),
+      summary: article.summary,
+      content: article.content,
       thumbnail: "https://placehold.co/1200x630",
       category: randomElement(Object.values(NewsCategory)),
       status,

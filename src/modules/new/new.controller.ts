@@ -6,6 +6,28 @@ export class NewController {
   private newsService = new NewsService();
 
   /**
+   * GET /api/news/liked
+   */
+  getLikedNews = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication is required" });
+      }
+
+      const result = await this.newsService.getLikedNews(userId);
+      return res.status(200).json({ success: true, ...result });
+    } catch (error: any) {
+      console.error("Error in getLikedNews controller:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  };
+
+  /**
    * GET /api/news
    */
   getAllNews = async (
@@ -70,6 +92,38 @@ export class NewController {
       });
     } catch (error: any) {
       console.error("Error in getNewsById controller:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  };
+
+  /**
+   * POST /api/news/:id/like
+   */
+  likeNews = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      if (!id) {
+        return res.status(400).json({ error: "Article ID is required" });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication is required" });
+      }
+
+      const result = await this.newsService.likeNews(id, userId);
+
+      if (!result) {
+        return res.status(404).json({ error: "News article not found" });
+      }
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("Error in likeNews controller:", error);
       return res.status(500).json({ error: "Internal server error" });
     }
   };

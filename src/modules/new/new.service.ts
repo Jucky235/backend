@@ -30,6 +30,7 @@ const safeNewsSelect = {
   thumbnail: true,
   category: true,
   status: true,
+  likesCount: true,
   viewsCount: true,
   authorName: true,
   publishedAt: true,
@@ -61,6 +62,27 @@ export class NewsService {
       .replace(/^-+|-+$/g, "");
 
     return `${slugified}-${Date.now().toString(36)}`;
+  }
+
+  /** Return the articles liked by a user, newest likes first. */
+  async getLikedNews(userId: string) {
+    const likes = await prisma.newsLike.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        createdAt: true,
+        news: { select: safeNewsSelect },
+      },
+    });
+
+    return {
+      data: likes.map(({ createdAt, news }) => ({
+        ...news,
+        likedAt: createdAt,
+        tags: news.tags ? news.tags.map((item: any) => item.tag) : [],
+      })),
+      total: likes.length,
+    };
   }
 
   /**
@@ -120,31 +142,64 @@ export class NewsService {
    * Fetch a single news article by ID or Slug and increment view count
    */
   async getNewsById(idOrSlug: string) {
-    const article: any = await prisma.news.findFirst({
+    const article = await prisma.news.findFirst({
       where: {
         OR: [{ id: idOrSlug }, { slug: idOrSlug }],
       },
-      select: safeNewsSelect,
+      select: { id: true },
     });
 
     if (!article) {
       return null;
     }
 
-    prisma.news
-      .update({
-        where: { id: article.id },
-        data: { viewsCount: { increment: 1 } },
-      })
-      .catch((err: unknown) =>
-        console.error("Failed to increment viewsCount:", err),
-      );
+    const viewedArticle = await prisma.news.update({
+      where: { id: article.id },
+      data: { viewsCount: { increment: 1 } },
+      select: safeNewsSelect,
+    });
 
     return {
-      ...article,
-      viewsCount: article.viewsCount + 1,
-      tags: article.tags ? article.tags.map((t: any) => t.tag) : [],
+      ...viewedArticle,
+      tags: viewedArticle.tags
+        ? viewedArticle.tags.map((t: any) => t.tag)
+        : [],
     };
+  }
+
+  /** Record one like per user and return the updated count. */
+  async likeNews(newsId: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const article = await tx.news.findUnique({
+        where: { id: newsId },
+        select: { id: true },
+      });
+
+      if (!article) {
+        return null;
+      }
+
+      const likeResult = await tx.newsLike.createMany({
+        data: [{ newsId, userId }],
+        skipDuplicates: true,
+      });
+
+      if (likeResult.count > 0) {
+        await tx.news.update({
+          where: { id: newsId },
+          data: { likesCount: { increment: 1 } },
+        });
+      }
+
+      const updatedArticle = await tx.news.findUnique({
+        where: { id: newsId },
+        select: { id: true, likesCount: true },
+      });
+
+      return updatedArticle
+        ? { ...updatedArticle, liked: true }
+        : null;
+    });
   }
 
   /**
